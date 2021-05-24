@@ -1,10 +1,10 @@
-Pkg.Desc=Android SDK System Image
+Pkg.Desc=CalyxOS Android SDK System Image
 Pkg.UserSrc=false
-Pkg.Revision=2
+Pkg.Revision=300000
 Pkg.Dependencies=emulator#29.1.11
 AndroidVersion.ApiLevel=${PLATFORM_SDK_VERSION}
 AndroidVersion.CodeName=${PLATFORM_VERSION_CODENAME}
 SystemImage.Abi=x86_64
 SystemImage.GpuSupport=true
-SystemImage.TagId=default
-SystemImage.TagDisplay=Default Android System Image
+SystemImage.TagId=calyx
+SystemImage.TagDisplay=CalyxOS Android System Image
