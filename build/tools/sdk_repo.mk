@@ -18,6 +18,14 @@ define sdk-repo-pkg-zip
 $(dir $(2))/sdk-repo-$(1)-$(3)-$(FILE_NAME_TAG).zip
 endef
 
+# Define the name of a package zip file to generate
+# $1=sdk zip (e.g. out/host/linux.../android-eng-sdk.zip)
+# $2=package to create (e.g. tools, docs, etc.)
+#
+define sdk-repo-pkg-zip-sysimg
+$(dir $(1))/sdk-repo-$(2)-$(FILE_NAME_TAG).zip
+endef
+
 # Defines the rule to build an SDK repository package by zipping all
 # the content of the given directory.
 # E.g. given a folder out/host/linux.../sdk/android-eng-sdk/tools
@@ -81,14 +89,14 @@ endef
 # The rule depends on the SDK zip file, which is defined by $2.
 #
 define mk-sdk-repo-pkg-3
-$(call sdk-repo-pkg-zip,$(2),$(3),$(4)): $(3)
+$(call sdk-repo-pkg-zip-sysimg,$(3),$(4)): $(3)
 	@echo "Building SDK repository package $(4) from $(notdir $(3))"
 	$(hide) cd $(basename $(3))/$(5) && \
-	        rm  -f   ../../../$(notdir $(call sdk-repo-pkg-zip,$(2),$(3),$(4))) && \
-	        zip -9rq ../../../$(notdir $(call sdk-repo-pkg-zip,$(2),$(3),$(4))) *
-$(call dist-for-goals, sdk_repo, $(call sdk-repo-pkg-zip,$(2),$(3),$(4)))
+	        rm  -f   ../../../$(notdir $(call sdk-repo-pkg-zip-sysimg,$(3),$(4))) && \
+	        zip -9rq ../../../$(notdir $(call sdk-repo-pkg-zip-sysimg,$(3),$(4))) *
+$(call dist-for-goals, sdk_repo, $(call sdk-repo-pkg-zip-sysimg,$(3),$(4)))
 $(1) += $(4) $(2) \
-    $(call sdk-repo-pkg-zip,$(2),$(3),$(4)):$(notdir $(call sdk-repo-pkg-zip,$(2),$(3),$(4)))
+    $(call sdk-repo-pkg-zip-sysimg,$(3),$(4)):$(notdir $(call sdk-repo-pkg-zip-sysimg,$(3),$(4)))
 endef
 
 # Defines the rule to build an SDK sources package.
@@ -131,7 +139,7 @@ ifneq ($(filter sdk win_sdk,$(MAKECMDGOALS)),)
 $(eval $(call mk-sdk-repo-pkg-3,SDK_SYSIMG_XML_ARGS,$(HOST_OS),$(MAIN_SDK_ZIP),system-images,system-images/*))
 
 SDK_SYSIMG_DEPS += \
-    $(call sdk-repo-pkg-zip,$(HOST_OS),$(MAIN_SDK_ZIP),system-images) \
+    $(call sdk-repo-pkg-zip-sysimg,$(MAIN_SDK_ZIP),system-images) \
 
 # All these go in the main repository.xml
 $(eval $(call mk-sdk-repo-pkg-2,SDK_REPO_XML_ARGS,$(HOST_OS),$(MAIN_SDK_ZIP),build-tools))
@@ -280,3 +288,4 @@ mk-sdk-repo-pkg-3 :=
 mk-sdk-repo-sources :=
 mk-sdk-repo-xml :=
 sdk-repo-pkg-zip :=
+sdk-repo-pkg-zip-sysimg :=
