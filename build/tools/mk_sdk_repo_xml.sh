@@ -429,6 +429,10 @@ while [[ -n "$1" ]]; do
       OLD_OS_ATTR=" os='$OS'"
     fi
 
+    if [[ "${ELEMENT}" == "system-image" ]]; then
+      unset USE_HOST_OS
+    fi
+
     cat >> "$OUT" <<EOFA
             <sdk:archive$OLD_OS_ATTR>
                 <sdk:size>$SIZE</sdk:size>
