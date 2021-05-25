@@ -433,11 +433,17 @@ while [[ -n "$1" ]]; do
       unset USE_HOST_OS
     fi
 
+    if [[ -n $OFFICIAL_BUILD && -n $PLATFORM_VERSION ]]; then
+      URL="https://release.calyxos.org/emulator/"$PLATFORM_VERSION"/$(basename "$DST")"
+    else
+      URL="$DST"
+    fi
+
     cat >> "$OUT" <<EOFA
             <sdk:archive$OLD_OS_ATTR>
                 <sdk:size>$SIZE</sdk:size>
                 <sdk:checksum type='sha1'>$SHA1</sdk:checksum>
-                <sdk:url>$DST</sdk:url>
+                <sdk:url>$URL</sdk:url>
 EOFA
     if [[ $USE_HOST_OS ]]; then
       # parse the Archive.Host/Jvm info from the source.props if present
