@@ -23,7 +23,7 @@ endef
 # $2=package to create (e.g. tools, docs, etc.)
 #
 define sdk-repo-pkg-zip-sysimg
-$(dir $(1))/emulator-$(2)-$(CALYXOS_VERSION)-$(FILE_NAME_TAG).zip
+$(dir $(1))/calyxos-emulator-$(2)-$(TARGET_ARCH_VARIANT)-$(FILE_NAME_TAG).zip
 endef
 
 # Defines the rule to build an SDK repository package by zipping all
