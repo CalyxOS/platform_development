@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d3e6bfca_4fb8fb26",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2021-06-07T15:50:58Z",
+      "side": 1,
+      "message": "Upload to AOSP?",
+      "revId": "0168b0117d8495e1ea7c974093e235515c63364f",
+      "serverId": "35266860-6252-469c-a67d-185064479fc0"
+    }
+  ]
+}
