@@ -1,6 +1,6 @@
 Pkg.Desc=CalyxOS Android SDK System Image
 Pkg.UserSrc=false
-Pkg.Revision=29100
+Pkg.Revision=29200
 Pkg.Dependencies=emulator#29.1.11
 AndroidVersion.ApiLevel=${PLATFORM_SDK_VERSION}
 AndroidVersion.CodeName=${PLATFORM_VERSION_CODENAME}
