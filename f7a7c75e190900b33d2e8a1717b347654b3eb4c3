@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "f14adf15_cb152a31",
+        "filename": "sys-img/images_x86_64_source.prop_template",
+        "patchSetId": 3
+      },
+      "lineNbr": 3,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2022-07-07T22:07:00Z",
+      "side": 1,
+      "message": "What do we want to use here now?\n\nFor reference: https://review.calyxos.org/c/CalyxOS/vendor_calyx/+/11598/1/config/version.mk (view all lines)",
+      "revId": "f7a7c75e190900b33d2e8a1717b347654b3eb4c3",
+      "serverId": "35266860-6252-469c-a67d-185064479fc0"
+    }
+  ]
+}
