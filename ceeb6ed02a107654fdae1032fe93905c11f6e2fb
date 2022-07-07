@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0efd552c_929e03db",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2022-07-07T22:10:08Z",
+      "side": 1,
+      "message": "upstream did 1788908: Stop relying on /usr/bin/python for SDK builds | https://android-review.googlesource.com/c/platform/development/+/1788908",
+      "revId": "ceeb6ed02a107654fdae1032fe93905c11f6e2fb",
+      "serverId": "35266860-6252-469c-a67d-185064479fc0"
+    }
+  ]
+}
