@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ffd1ef93_87511a04",
+        "filename": "build/tools/sdk_repo.mk",
+        "patchSetId": 3
+      },
+      "lineNbr": 142,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2022-11-25T15:37:01Z",
+      "side": 1,
+      "message": "Removed in: 5708cfea1c10602c9454080e47e8a81f069e9663\n\n\u003e We have removed the system-images sdk zip, so remove the tracking of it as a dependency for the addon.",
+      "revId": "a4cc3e1c47b048616e6fdbfa4f25f64aee1a108f",
+      "serverId": "35266860-6252-469c-a67d-185064479fc0"
+    }
+  ]
+}
