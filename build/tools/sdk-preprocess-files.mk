@@ -39,6 +39,7 @@ define process_prop_template
 @echo Generate $@
 $(hide) mkdir -p $(dir $@)
 $(hide) sed \
+	-e 's/$${CALYXOS_VERSION}/$(CALYXOS_VERSION)/' \
 	-e 's/$${PLATFORM_VERSION}/$(PLATFORM_VERSION)/' \
 	-e 's/$${PLATFORM_SDK_VERSION}/$(subst ",,$(PLATFORM_SDK_VERSION_FULL))/' \
 	-e 's/$${PLATFORM_SDK_EXTENSION_VERSION}/$(PLATFORM_SDK_EXTENSION_VERSION)/' \
