@@ -429,11 +429,21 @@ while [[ -n "$1" ]]; do
       OLD_OS_ATTR=" os='$OS'"
     fi
 
+    if [[ "${ELEMENT}" == "system-image" ]]; then
+      unset USE_HOST_OS
+    fi
+
+    if [[ -n $OFFICIAL_BUILD ]]; then
+      URL="https://release.calyxinstitute.org/$(basename "$DST")"
+    else
+      URL="$DST"
+    fi
+
     cat >> "$OUT" <<EOFA
             <sdk:archive$OLD_OS_ATTR>
                 <sdk:size>$SIZE</sdk:size>
                 <sdk:checksum type='sha1'>$SHA1</sdk:checksum>
-                <sdk:url>$DST</sdk:url>
+                <sdk:url>$URL</sdk:url>
 EOFA
     if [[ $USE_HOST_OS ]]; then
       # parse the Archive.Host/Jvm info from the source.props if present
