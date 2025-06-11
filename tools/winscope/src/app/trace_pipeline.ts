@@ -19,7 +19,7 @@ import {OnProgressUpdateType} from 'common/function_utils';
 import {
   TimestampConverter,
   UTC_TIMEZONE_INFO,
-} from 'common/timestamp_converter';
+} from 'common/time/timestamp_converter';
 import {UserNotifier} from 'common/user_notifier';
 import {Analytics} from 'logging/analytics';
 import {ProgressListener} from 'messaging/progress_listener';
@@ -68,7 +68,11 @@ export class TracePipeline {
       }
 
       for (const unzippedArchive of unzippedArchives) {
-        await this.loadUnzippedArchive(unzippedArchive, progressListener);
+        await this.loadUnzippedArchive(
+          unzippedArchive,
+          source,
+          progressListener,
+        );
       }
 
       this.traces = new Traces();
@@ -199,9 +203,22 @@ export class TracePipeline {
 
   private async loadUnzippedArchive(
     unzippedArchive: UnzippedArchive,
+    source: FilesSource,
     progressListener: ProgressListener | undefined,
   ) {
+    let startTimeMs = Date.now();
     const filterResult = await this.traceFileFilter.filter(unzippedArchive);
+    const size =
+      filterResult.legacy.reduce(
+        (totalSize, f) => (totalSize += f.file.size),
+        0,
+      ) + (filterResult.perfetto?.file.size ?? 0);
+    Analytics.Loading.logFileExtractionTime(
+      'bugreport',
+      Date.now() - startTimeMs,
+      size,
+    );
+
     if (filterResult.timezoneInfo) {
       this.timestampConverter = new TimestampConverter(
         filterResult.timezoneInfo,
@@ -213,21 +230,35 @@ export class TracePipeline {
       return;
     }
 
+    startTimeMs = Date.now();
     const legacyParsers = await new LegacyParserFactory().createParsers(
       filterResult.legacy,
       this.timestampConverter,
       filterResult.metadata,
       progressListener,
     );
+    Analytics.Loading.logFileParsingTime(
+      'legacy',
+      source,
+      Date.now() - startTimeMs,
+    );
+    Analytics.Memory.logUsage('legacy_files_parsed');
 
     let perfettoParsers: FileAndParsers | undefined;
 
     if (filterResult.perfetto) {
+      startTimeMs = Date.now();
       const parsers = await new PerfettoParserFactory().createParsers(
         filterResult.perfetto,
         this.timestampConverter,
         progressListener,
       );
+      Analytics.Loading.logFileParsingTime(
+        'perfetto',
+        source,
+        Date.now() - startTimeMs,
+      );
+      Analytics.Memory.logUsage('perfetto_files_parsed');
       perfettoParsers = new FileAndParsers(filterResult.perfetto, parsers);
     }
 

@@ -15,8 +15,8 @@
  */
 
 import {assertDefined, assertTrue} from 'common/assert_utils';
-import {INVALID_TIME_NS, Timestamp} from 'common/time';
-import {ParserTimestampConverter} from 'common/timestamp_converter';
+import {INVALID_TIME_NS, Timestamp} from 'common/time/time';
+import {ParserTimestampConverter} from 'common/time/timestamp_converter';
 import {CoarseVersion} from 'trace/coarse_version';
 import {
   CustomQueryParamTypeMap,
@@ -28,13 +28,14 @@ import {Parser} from 'trace/parser';
 import {TraceFile} from 'trace/trace_file';
 import {TRACE_INFO} from 'trace/trace_info';
 import {TraceType} from 'trace/trace_type';
-import {WasmEngineProxy} from 'trace_processor/wasm_engine_proxy';
+import {TraceProcessor} from 'trace_processor/trace_processor';
 
 export abstract class AbstractParser<T> implements Parser<T> {
-  protected traceProcessor: WasmEngineProxy;
+  protected traceProcessor: TraceProcessor;
   protected realToBootTimeOffsetNs?: bigint;
   protected timestampConverter: ParserTimestampConverter;
   protected entryIndexToRowIdMap: number[] = [];
+  protected preProcessTrace?(): Promise<void>;
 
   private lengthEntries = 0;
   private traceFile: TraceFile;
@@ -43,7 +44,7 @@ export abstract class AbstractParser<T> implements Parser<T> {
 
   constructor(
     traceFile: TraceFile,
-    traceProcessor: WasmEngineProxy,
+    traceProcessor: TraceProcessor,
     timestampConverter: ParserTimestampConverter,
   ) {
     this.traceFile = traceFile;
@@ -55,6 +56,10 @@ export abstract class AbstractParser<T> implements Parser<T> {
     const module = this.getStdLibModuleName();
     if (module) {
       await this.traceProcessor.query(`INCLUDE PERFETTO MODULE ${module};`);
+    }
+
+    if (this.preProcessTrace) {
+      await this.preProcessTrace();
     }
 
     this.entryIndexToRowIdMap = await this.buildEntryIndexToRowIdMap();
@@ -71,7 +76,7 @@ export abstract class AbstractParser<T> implements Parser<T> {
 
     let lastNonZeroTimestamp: bigint | undefined;
     for (let i = this.bootTimeTimestampsNs.length - 1; i >= 0; i--) {
-      if (this.bootTimeTimestampsNs[i] !== 0n) {
+      if (this.bootTimeTimestampsNs[i] !== INVALID_TIME_NS) {
         lastNonZeroTimestamp = this.bootTimeTimestampsNs[i];
         break;
       }
@@ -128,9 +133,7 @@ export abstract class AbstractParser<T> implements Parser<T> {
      FROM ${this.getTableName()} AS tbl
      ORDER BY tbl.ts;
    `;
-    const result = await this.traceProcessor
-      .query(sqlRowIdAndTimestamp)
-      .waitAllRows();
+    const result = await this.traceProcessor.queryAllRows(sqlRowIdAndTimestamp);
     const entryIndexToRowId: AbsoluteEntryIndex[] = [];
     for (const it = result.iter({}); it.valid(); it.next()) {
       const rowId = Number(it.get('id') as bigint);
@@ -139,9 +142,9 @@ export abstract class AbstractParser<T> implements Parser<T> {
     return entryIndexToRowId;
   }
 
-  async queryRowBootTimeTimestamps(): Promise<Array<bigint>> {
+  private async queryRowBootTimeTimestamps(): Promise<Array<bigint>> {
     const sql = `SELECT ts FROM ${this.getTableName()} ORDER BY id;`;
-    const result = await this.traceProcessor.query(sql).waitAllRows();
+    const result = await this.traceProcessor.queryAllRows(sql);
     const timestamps: Array<bigint> = [];
     for (const it = result.iter({}); it.valid(); it.next()) {
       timestamps.push(it.get('ts') as bigint);
@@ -158,7 +161,7 @@ export abstract class AbstractParser<T> implements Parser<T> {
       SELECT TO_REALTIME(${bootTimeNs}) as realtime;
     `;
 
-    const result = await this.traceProcessor.query(sql).waitAllRows();
+    const result = await this.traceProcessor.queryAllRows(sql);
     assertTrue(
       result.numRows() === 1,
       () => 'Failed to query realtime timestamp',

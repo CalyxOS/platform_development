@@ -64,11 +64,6 @@ impl CrateType {
     pub fn is_test(self) -> bool {
         matches!(self, Self::Test | Self::TestNoHarness)
     }
-
-    /// Returns whether the crate type is a kind of C ABI library.
-    pub fn is_c_library(self) -> bool {
-        matches!(self, Self::CDyLib | Self::StaticLib)
-    }
 }
 
 /// Info extracted from `CargoOut` for a crate.
@@ -87,7 +82,6 @@ pub struct Crate {
     pub cfgs: Vec<String>,      // non-feature --cfg
     pub externs: Vec<Extern>,
     pub codegens: Vec<String>, // -C
-    pub cap_lints: String,
     pub static_libs: Vec<String>,
     pub shared_libs: Vec<String>,
     pub edition: String,

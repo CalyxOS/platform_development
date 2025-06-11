@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import {Timestamp} from 'common/time';
-import {ParserTimestampConverter} from 'common/timestamp_converter';
+import {Timestamp} from 'common/time/time';
+import {ParserTimestampConverter} from 'common/time/timestamp_converter';
 import {CoarseVersion} from 'trace/coarse_version';
 import {
   CustomQueryParamTypeMap,
@@ -29,19 +29,21 @@ import {TraceMetadata} from 'trace/trace_metadata';
 import {TraceType} from 'trace/trace_type';
 import {ParsingUtils} from './parsing_utils';
 
-export abstract class AbstractParser<T extends object = object>
-  implements Parser<T>
+export abstract class AbstractParser<
+  T extends object,
+  U extends object | bigint | number,
+> implements Parser<T>
 {
   private timestamps: Timestamp[] | undefined;
   protected traceFile: TraceFile;
-  protected decodedEntries: any[] = [];
+  protected decodedEntries: U[] = [];
   protected timestampConverter: ParserTimestampConverter;
   protected readonly metadata: TraceMetadata | undefined;
 
   protected abstract getMagicNumber(): undefined | number[];
-  protected abstract decodeTrace(trace: Uint8Array): any[] | Promise<any[]>;
-  protected abstract getTimestamp(decodedEntry: any): Timestamp;
-  protected abstract processDecodedEntry(index: number, decodedEntry: any): any;
+  protected abstract decodeTrace(trace: Uint8Array): U[] | Promise<U[]>;
+  protected abstract getTimestamp(decodedEntry: U): Timestamp;
+  protected abstract processDecodedEntry(index: number, decodedEntry: U): T;
 
   constructor(
     trace: TraceFile,

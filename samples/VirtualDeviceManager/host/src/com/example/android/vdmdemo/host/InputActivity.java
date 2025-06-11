@@ -28,6 +28,7 @@ import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 
 import com.example.android.vdmdemo.common.DpadFragment;
+import com.example.android.vdmdemo.common.EdgeToEdgeUtils;
 import com.example.android.vdmdemo.common.NavTouchpadFragment;
 import com.example.android.vdmdemo.common.RemoteEventProto.InputDeviceType;
 import com.example.android.vdmdemo.common.RotaryFragment;
@@ -57,6 +58,7 @@ public class InputActivity extends Hilt_InputActivity {
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
         setTitle(getTitle() + " " + getString(R.string.input));
+        EdgeToEdgeUtils.applyTopInsets(toolbar);
 
         mOriginalShowPointerIconPreference =
                 mPreferenceController.getBoolean(R.string.pref_show_pointer_icon);
@@ -115,6 +117,8 @@ public class InputActivity extends Hilt_InputActivity {
                 v -> mInputController.sendMouseButtonEvent(MotionEvent.BUTTON_FORWARD));
         requireViewById(R.id.button_home).setOnClickListener(
                 v -> mInputController.sendHomeToFocusedDisplay());
+
+        EdgeToEdgeUtils.applyBottomInsets(bottomNavigationView);
     }
 
     private void setShowPointerIcon(boolean show) {

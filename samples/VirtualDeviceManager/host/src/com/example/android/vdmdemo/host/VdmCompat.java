@@ -39,7 +39,7 @@ public class VdmCompat {
 
     static VirtualDisplayConfig.Builder setHomeSupported(
             VirtualDisplayConfig.Builder builder, int flags) {
-        if (BuildCompat.isAtLeastV() && android.companion.virtual.flags.Flags.vdmCustomHome()) {
+        if (BuildCompat.isAtLeastV()) {
             return builder.setHomeSupported(true);
         } else {
             return builder.setFlags(flags | VIRTUAL_DISPLAY_FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS);
@@ -72,12 +72,20 @@ public class VdmCompat {
         if (!preferenceController.getBoolean(R.string.internal_pref_mirror_displays_supported)) {
             return false;
         }
-        // TODO: replace with isAtLeastB once available.
-        if (Flags.enableLimitedVdmRole()) {
+        if (preferenceController.getBoolean(R.string.pref_standalone_host_demo)) {
+            return false;
+        }
+        if (isAtLeastB() && Flags.enableLimitedVdmRole()) {
             return context.checkCallingOrSelfPermission(ADD_MIRROR_DISPLAY)
                     == PackageManager.PERMISSION_GRANTED;
         }
         return preferenceController.getString(R.string.pref_device_profile)
                 .equals(AssociationRequest.DEVICE_PROFILE_APP_STREAMING);
+    }
+
+    // TODO(b/379277747): replace with BuildCompat.isAtLeastB once available.
+    static boolean isAtLeastB() {
+        return Build.VERSION.CODENAME.equals("Baklava")
+                || Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA;
     }
 }

@@ -27,7 +27,7 @@ import {FormControl, ValidationErrors, Validators} from '@angular/forms';
 import {overlayPanelStyles} from 'app/styles/overlay_panel.styles';
 import {assertDefined} from 'common/assert_utils';
 import {FunctionUtils} from 'common/function_utils';
-import {Store} from 'common/store';
+import {Store} from 'common/store/store';
 import {Analytics} from 'logging/analytics';
 import {
   FilterPresetApplyRequest,
@@ -49,6 +49,7 @@ import {View, Viewer, ViewType} from 'viewers/viewer';
 interface Tab {
   view: View;
   addedToDom: boolean;
+  isTooltipStable: boolean;
 }
 
 @Component({
@@ -67,8 +68,10 @@ interface Tab {
                 [matTooltip]="getTabTooltip(tab.view)"
                 matTooltipPosition="above"
                 [matTooltipShowDelay]="300"
+                [matTooltipDisabled]="!tab.isTooltipStable"
                 (click)="onTabClick(tab)"
                 (focus)="$event.target.blur()"
+                (mouseenter)="onTabHover($event, tab)"
                 [class.last]="isLast"
                 class="tab">
               <mat-icon
@@ -303,6 +306,18 @@ export class TraceViewComponent
     return TRACE_INFO[trace.type].icon;
   }
 
+  onTabHover(event: MouseEvent, tab: Tab) {
+    if (tab.isTooltipStable) {
+      return;
+    }
+    this.ngZone.run(() => {
+      (event.target as HTMLElement).dispatchEvent(new Event('mouseleave'));
+      tab.isTooltipStable = true;
+      this.changeDetectorRef.detectChanges();
+      (event.target as HTMLElement)?.dispatchEvent(new Event('mouseenter'));
+    });
+  }
+
   async onTabClick(tab: Tab) {
     await this.showTab(tab, false);
   }
@@ -328,7 +343,11 @@ export class TraceViewComponent
   }
 
   getTabTooltip(view: View): string {
-    return view.traces.flatMap((trace) => trace.getDescriptors()).join(', ');
+    const desc = new Set();
+    view.traces.forEach((trace) =>
+      trace.getDescriptors().forEach((d) => desc.add(d)),
+    );
+    return Array.from(desc).join(', ');
   }
 
   getTitle(view: View): string {
@@ -422,14 +441,9 @@ export class TraceViewComponent
         return {
           view,
           addedToDom: false,
+          isTooltipStable: false,
         };
       });
-
-    this.tabs.forEach((tab) => {
-      // TODO: setting "store" this way is a hack.
-      //       Store should be part of View's interface.
-      (tab.view.htmlElement as any).store = this.store;
-    });
 
     if (this.tabs.length > 0) {
       const tabToShow = assertDefined(
@@ -464,11 +478,13 @@ export class TraceViewComponent
   }
 
   private async showTab(tab: Tab, firstToRender: boolean) {
+    const startTimeMs = Date.now();
     if (this.currentActiveTab) {
       this.currentActiveTab.view.htmlElement.style.display = 'none';
     }
 
-    if (!tab.addedToDom) {
+    const firstSwitch = !tab.addedToDom;
+    if (firstSwitch) {
       // Workaround for b/255966194:
       // make sure that the first time a tab content is rendered
       // (added to the DOM) it has style.display == "". This fixes the
@@ -486,8 +502,15 @@ export class TraceViewComponent
     this.currentActiveTab = tab;
 
     if (!firstToRender) {
-      Analytics.Navigation.logTabSwitched(tab.view.title);
       await this.emitAppEvent(new TabbedViewSwitched(tab.view));
+      Analytics.Navigation.logTabSwitched(
+        tab.view.title,
+        Date.now() - startTimeMs,
+        firstSwitch,
+      );
+    }
+    if (firstSwitch) {
+      Analytics.Memory.logUsage('tab_initialized', {firstSwitch});
     }
   }
 

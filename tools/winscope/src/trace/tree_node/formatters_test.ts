@@ -26,6 +26,8 @@ import {
   DEFAULT_PROPERTY_FORMATTER,
   EMPTY_ARRAY_STRING,
   EMPTY_OBJ_STRING,
+  formatAsHex,
+  HEX_FORMATTER,
   LAYER_ID_FORMATTER,
   MATRIX_FORMATTER,
   POSITION_FORMATTER,
@@ -308,6 +310,24 @@ describe('Formatters', () => {
         .build();
 
       expect(CUJ_TYPE_FORMATTER.format(cujType)).toEqual('UNKNOWN (-1)');
+    });
+  });
+
+  describe('hex formatting', () => {
+    it('formatAsHex()', () => {
+      expect(formatAsHex(0)).toEqual('0x0');
+      expect(formatAsHex(1024)).toEqual('0x400');
+      expect(formatAsHex(-1024)).toEqual('0xfffffc00');
+      expect(formatAsHex(-1024, true)).toEqual('0xFFFFFC00');
+    });
+
+    it('HexFormatter', () => {
+      const hashcode = new PropertyTreeBuilder()
+        .setRootId('test node')
+        .setName('hashcode')
+        .setValue(1024)
+        .build();
+      expect(HEX_FORMATTER.format(hashcode)).toEqual('0x400');
     });
   });
 });

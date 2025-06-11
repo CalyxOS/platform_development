@@ -271,9 +271,10 @@ class Mapper3D {
           ? assertDefined(rect2d.opacity)
           : (visibleRectsTotal - visibleRectsSoFar++) / visibleRectsTotal;
       } else {
-        darkFactor =
-          (nonVisibleRectsTotal - nonVisibleRectsSoFar++) /
-          nonVisibleRectsTotal;
+        darkFactor = this.isShadedByOpacity()
+          ? 0.5
+          : (nonVisibleRectsTotal - nonVisibleRectsSoFar++) /
+            nonVisibleRectsTotal;
       }
       let fillRegion: Rect3D[] | undefined;
       if (rect2d.fillRegion) {
@@ -307,6 +308,9 @@ class Mapper3D {
 
   private getColorType(rect2d: UiRect): ColorType {
     if (this.isHighlighted(rect2d)) {
+      if (this.isShadedByOpacity()) {
+        return ColorType.HIGHLIGHTED_WITH_OPACITY;
+      }
       return ColorType.HIGHLIGHTED;
     }
     if (this.isWireFrame()) {
@@ -348,10 +352,11 @@ class Mapper3D {
   }
 
   private cropOversizedRect(rect3d: UiRect3D, maxDisplaySize: Size): UiRect3D {
-    // Arbitrary max size for a rect (2x the maximum display)
+    // Arbitrary max size for a rect (1.5x the maximum display)
     let maxDimension = Number.MAX_VALUE;
     if (maxDisplaySize.height > 0) {
-      maxDimension = Math.max(maxDisplaySize.width, maxDisplaySize.height) * 2;
+      maxDimension =
+        Math.max(maxDisplaySize.width, maxDisplaySize.height) * 1.5;
     }
 
     const height = Math.abs(rect3d.topLeft.y - rect3d.bottomRight.y);

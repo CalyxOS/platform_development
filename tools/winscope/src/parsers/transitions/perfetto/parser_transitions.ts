@@ -23,6 +23,29 @@ import {PropertyTreeNode} from 'trace/tree_node/property_tree_node';
 
 export class ParserTransitions extends AbstractParser<PropertyTreeNode> {
   private handlerIdToName: {[id: number]: string} | undefined = undefined;
+  private readonly internalTableName = 'window_manager_shell_transitions';
+
+  protected override async preProcessTrace() {
+    // Entry timestamps are defined as shell dispatch time, which corresponds
+    // to the ts column of the internal Perfetto table - if this is 0 and
+    // send time is not null we fall back on send time
+    const sql = `
+      CREATE PERFETTO TABLE ${this.getTableName()} AS
+      SELECT
+        STATE.id as id,
+        CASE
+          WHEN (STATE.ts = 0 AND TRANS.int_value IS NOT NULL) THEN TRANS.int_value
+          ELSE STATE.ts END
+        AS ts,
+        STATE.transition_id,
+        STATE.arg_set_id
+      FROM ${this.internalTableName} STATE
+      LEFT JOIN args TRANS
+        ON TRANS.arg_set_id = STATE.arg_set_id AND TRANS.key = 'send_time_ns'
+      ORDER BY id;
+   `;
+    await this.traceProcessor.queryAllRows(sql);
+  }
 
   override getTraceType(): TraceType {
     return TraceType.TRANSITION;
@@ -41,7 +64,7 @@ export class ParserTransitions extends AbstractParser<PropertyTreeNode> {
   }
 
   protected override getTableName(): string {
-    return 'window_manager_shell_transitions';
+    return 'transitions_with_updated_ts';
   }
 
   private async queryEntry(
@@ -58,11 +81,11 @@ export class ParserTransitions extends AbstractParser<PropertyTreeNode> {
         args.string_value,
         args.real_value
       FROM
-        window_manager_shell_transitions as transitions
+        ${this.getTableName()} as transitions
         INNER JOIN args ON transitions.arg_set_id = args.arg_set_id
       WHERE transitions.id = ${this.entryIndexToRowIdMap[index]};
     `;
-    const result = await this.traceProcessor.query(sql).waitAllRows();
+    const result = await this.traceProcessor.queryAllRows(sql);
 
     for (const it = result.iter({}); it.valid(); it.next()) {
       protoBuilder.addArg(
@@ -125,7 +148,7 @@ export class ParserTransitions extends AbstractParser<PropertyTreeNode> {
   private async queryHandlers(): Promise<TransitionHandler[]> {
     const sql =
       'SELECT handler_id, handler_name FROM window_manager_shell_transition_handlers;';
-    const result = await this.traceProcessor.query(sql).waitAllRows();
+    const result = await this.traceProcessor.queryAllRows(sql);
 
     const handlers: TransitionHandler[] = [];
     for (const it = result.iter({}); it.valid(); it.next()) {

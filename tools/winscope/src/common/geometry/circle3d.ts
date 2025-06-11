@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 import {Point3D} from './point3d';
 
+/**
+ * Represents a 3D circle.
+ */
 export interface Circle3D {
   radius: number;
   center: Point3D;

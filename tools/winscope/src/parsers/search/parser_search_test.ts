@@ -15,9 +15,12 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
+import {
+  TimestampConverterUtils,
+  timestampEqualityTester,
+} from 'common/time/test_utils';
 import {TraceSearchQueryFailed} from 'messaging/user_warnings';
 import {ParserSurfaceFlinger} from 'parsers/surface_flinger/perfetto/parser_surface_flinger';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {UserNotifierChecker} from 'test/unit/user_notifier_checker';
 import {UnitTestUtils} from 'test/unit/utils';
 import {CoarseVersion} from 'trace/coarse_version';
@@ -30,7 +33,7 @@ describe('ParserSearch', () => {
 
   beforeAll(() => {
     userNotifierChecker = new UserNotifierChecker();
-    jasmine.addCustomEqualityTester(UnitTestUtils.timestampEqualityTester);
+    jasmine.addCustomEqualityTester(timestampEqualityTester);
   });
 
   afterEach(() => {
@@ -56,6 +59,12 @@ describe('ParserSearch', () => {
       expect(parser.getCoarseVersion()).toEqual(CoarseVersion.LATEST);
     });
 
+    it('has expected descriptors', () => {
+      expect(parser.getDescriptors()).toEqual([
+        'SELECT * FROM surfaceflinger_layers_snapshot',
+      ]);
+    });
+
     it('has length entries equal to number of rows', () => {
       expect(parser.getLengthEntries()).toEqual(21);
     });
@@ -77,8 +86,7 @@ describe('ParserSearch', () => {
       const firstRow = entry.iter({});
       expect(firstRow.get('id')).toEqual(0n);
       expect(firstRow.get('ts')).toEqual(14500282843n);
-      expect(firstRow.get('type')).toEqual('surfaceflinger_layers_snapshot');
-      expect(firstRow.get('arg_set_id')).toEqual(176n);
+      expect(firstRow.get('arg_set_id')).toEqual(6193n);
     });
   });
 
@@ -107,8 +115,7 @@ describe('ParserSearch', () => {
       expect(entry.numRows()).toEqual(1815);
       const firstRow = entry.iter({});
       expect(firstRow.get('id')).toEqual(0n);
-      expect(firstRow.get('type')).toEqual('surfaceflinger_layer');
-      expect(firstRow.get('arg_set_id')).toEqual(1n);
+      expect(firstRow.get('arg_set_id')).toEqual(0n);
       expect(firstRow.get('snapshot_id')).toEqual(0n);
     });
   });
@@ -136,10 +143,8 @@ describe('ParserSearch', () => {
       const entry = await parser.getEntry(0);
       expect(entry.columns()).toEqual([
         'id',
-        'type',
         'ts',
         'arg_set_id',
-        'base64_proto',
         'base64_proto_id',
       ]);
       expect(entry.numRows()).toEqual(0);

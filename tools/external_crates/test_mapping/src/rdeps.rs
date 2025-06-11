@@ -24,10 +24,10 @@ use std::{
 };
 
 use android_bp::BluePrint;
-use owning_ref::MutexGuardRef;
 
-use crate::{blueprint::RustDeps, TestMappingError};
+use crate::{blueprint::RustDeps, Error};
 
+#[derive(Clone)]
 pub(crate) struct ReverseDeps {
     // Mapping from Rust build rule target name => list of paths that depend on it.
     rdeps: HashMap<String, BTreeSet<String>>,
@@ -37,9 +37,7 @@ impl ReverseDeps {
     /// Returns a reverse dependency lookup for the Android source repo
     /// at the specified absolute path. Each lookup is created once
     /// and cached.
-    pub fn for_repo(
-        repo_root: &Path,
-    ) -> MutexGuardRef<'static, HashMap<PathBuf, ReverseDeps>, ReverseDeps> {
+    pub fn for_repo(repo_root: &Path) -> ReverseDeps {
         static RDEPS: LazyLock<Mutex<HashMap<PathBuf, ReverseDeps>>> =
             LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -47,14 +45,14 @@ impl ReverseDeps {
             .lock()
             .unwrap()
             .entry(repo_root.to_path_buf())
-            .or_insert_with(|| ReverseDeps::grep_and_parse(repo_root).unwrap());
-        MutexGuardRef::new(RDEPS.lock().unwrap()).map(|rdeps| rdeps.get(repo_root).unwrap())
+            .or_insert_with(|| ReverseDeps::grep_and_parse(repo_root).unwrap())
+            .clone()
     }
     /// Get the paths that depend on a rust library.
     pub fn get(&self, name: &str) -> Option<&BTreeSet<String>> {
         self.rdeps.get(name)
     }
-    fn grep_and_parse<P: Into<PathBuf>>(repo_root: P) -> Result<ReverseDeps, TestMappingError> {
+    fn grep_and_parse<P: Into<PathBuf>>(repo_root: P) -> Result<ReverseDeps, Error> {
         let repo_root = repo_root.into();
         // Empirically, TEST_MAPPING files for 3rd party crates only
         // have imports from external, packages, system, and tools.
@@ -77,8 +75,7 @@ impl ReverseDeps {
             if EXCLUDED_PATHS.iter().any(|excluded| line.starts_with(excluded)) {
                 continue;
             }
-            let (dir, _) =
-                line.rsplit_once('/').ok_or(TestMappingError::GrepParseError(line.to_string()))?;
+            let (dir, _) = line.rsplit_once('/').ok_or(Error::GrepParseError(line.to_string()))?;
             if let Ok(bp) = BluePrint::from_file(repo_root.join(line)) {
                 for rustlib in bp.rust_deps() {
                     rdeps.entry(rustlib).or_insert(BTreeSet::new()).insert(dir.to_string());

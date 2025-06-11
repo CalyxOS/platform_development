@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import {CdkAccordionModule} from '@angular/cdk/accordion';
 import {ClipboardModule} from '@angular/cdk/clipboard';
 import {DragDropModule} from '@angular/cdk/drag-drop';
 import {CdkMenuModule} from '@angular/cdk/menu';
@@ -24,8 +25,10 @@ import {HttpClientModule} from '@angular/common/http';
 import {CUSTOM_ELEMENTS_SCHEMA, ErrorHandler, NgModule} from '@angular/core';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {MatButtonModule} from '@angular/material/button';
+import {MatButtonToggleModule} from '@angular/material/button-toggle';
 import {MatCardModule} from '@angular/material/card';
 import {MatCheckboxModule} from '@angular/material/checkbox';
+import {MatPseudoCheckboxModule} from '@angular/material/core';
 import {MatDialogModule} from '@angular/material/dialog';
 import {MatDividerModule} from '@angular/material/divider';
 import {MatFormFieldModule} from '@angular/material/form-field';
@@ -70,6 +73,7 @@ import {ViewerJankCujsComponent} from 'viewers/viewer_jank_cujs/viewer_jank_cujs
 import {ViewerMediaBasedComponent} from 'viewers/viewer_media_based/viewer_media_based_component';
 import {ProtologScrollDirective} from 'viewers/viewer_protolog/scroll_strategy/protolog_scroll_directive';
 import {ViewerProtologComponent} from 'viewers/viewer_protolog/viewer_protolog_component';
+import {ActiveSearchComponent} from 'viewers/viewer_search/active_search_component';
 import {SearchListComponent} from 'viewers/viewer_search/search_list_component';
 import {ViewerSearchComponent} from 'viewers/viewer_search/viewer_search_component';
 import {ViewerSurfaceFlingerComponent} from 'viewers/viewer_surface_flinger/viewer_surface_flinger_component';
@@ -79,7 +83,6 @@ import {TransitionsScrollDirective} from 'viewers/viewer_transitions/scroll_stra
 import {ViewerTransitionsComponent} from 'viewers/viewer_transitions/viewer_transitions_component';
 import {ViewerViewCaptureComponent} from 'viewers/viewer_view_capture/viewer_view_capture_component';
 import {ViewerWindowManagerComponent} from 'viewers/viewer_window_manager/viewer_window_manager_component';
-import {AdbProxyComponent} from './components/adb_proxy_component';
 import {AppComponent} from './components/app_component';
 import {
   MatDrawer,
@@ -100,7 +103,8 @@ import {TraceConfigComponent} from './components/trace_config_component';
 import {TraceViewComponent} from './components/trace_view_component';
 import {UploadTracesComponent} from './components/upload_traces_component';
 import {WarningDialogComponent} from './components/warning_dialog_component';
-import {WebAdbComponent} from './components/web_adb_component';
+import {WdpSetupComponent} from './components/wdp_setup_component';
+import {WinscopeProxySetupComponent} from './components/winscope_proxy_setup_component';
 import {GlobalErrorHandler} from './global_error_handler';
 
 @NgModule({
@@ -119,8 +123,8 @@ import {GlobalErrorHandler} from './global_error_handler';
     ViewerSearchComponent,
     CollectTracesComponent,
     UploadTracesComponent,
-    AdbProxyComponent,
-    WebAdbComponent,
+    WinscopeProxySetupComponent,
+    WdpSetupComponent,
     TraceConfigComponent,
     HierarchyComponent,
     PropertiesComponent,
@@ -159,6 +163,7 @@ import {GlobalErrorHandler} from './global_error_handler';
     WarningDialogComponent,
     SearchBoxComponent,
     SearchListComponent,
+    ActiveSearchComponent,
   ],
   imports: [
     BrowserModule,
@@ -193,6 +198,9 @@ import {GlobalErrorHandler} from './global_error_handler';
     MatDialogModule,
     MatTableModule,
     OverlayModule,
+    CdkAccordionModule,
+    MatButtonToggleModule,
+    MatPseudoCheckboxModule,
   ],
   providers: [Title, {provide: ErrorHandler, useClass: GlobalErrorHandler}],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],

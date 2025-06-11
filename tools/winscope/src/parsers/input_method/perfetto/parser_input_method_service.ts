@@ -15,7 +15,7 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
-import {ParserTimestampConverter} from 'common/timestamp_converter';
+import {ParserTimestampConverter} from 'common/time/timestamp_converter';
 import {HierarchyTreeServiceFactory} from 'parsers/input_method/hierarchy_tree_service_factory';
 import {AbstractParser} from 'parsers/perfetto/abstract_parser';
 import {FakeProtoTransformer} from 'parsers/perfetto/fake_proto_transformer';
@@ -25,7 +25,7 @@ import root from 'protos/ime/latest/json';
 import {TraceFile} from 'trace/trace_file';
 import {TraceType} from 'trace/trace_type';
 import {HierarchyTreeNode} from 'trace/tree_node/hierarchy_tree_node';
-import {WasmEngineProxy} from 'trace_processor/wasm_engine_proxy';
+import {TraceProcessor} from 'trace_processor/trace_processor';
 
 export class ParserInputMethodService extends AbstractParser<HierarchyTreeNode> {
   private static readonly Wrapper = TamperedMessageType.tamper(
@@ -46,7 +46,7 @@ export class ParserInputMethodService extends AbstractParser<HierarchyTreeNode> 
 
   constructor(
     traceFile: TraceFile,
-    traceProcessor: WasmEngineProxy,
+    traceProcessor: TraceProcessor,
     timestampConverter: ParserTimestampConverter,
   ) {
     super(traceFile, traceProcessor, timestampConverter);

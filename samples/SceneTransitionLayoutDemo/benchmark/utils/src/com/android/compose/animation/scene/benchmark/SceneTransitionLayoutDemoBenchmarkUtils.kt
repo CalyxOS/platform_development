@@ -43,7 +43,11 @@ interface SceneTransitionLayoutBenchmarkScope {
     fun startActivity(intent: Intent)
 }
 
-fun SceneTransitionLayoutBenchmarkScope.startDemoActivity(initialScene: String) {
+fun SceneTransitionLayoutBenchmarkScope.startDemoActivity(
+    initialScene: String,
+    notificationsInShade: Int? = null,
+    enableOverlays: Boolean = false,
+) {
     val intent =
         (context().packageManager.getLaunchIntentForPackage(StlDemoConstants.PACKAGE)
                 ?: error("Unable to acquire intent for package ${StlDemoConstants.PACKAGE}"))
@@ -53,6 +57,11 @@ fun SceneTransitionLayoutBenchmarkScope.startDemoActivity(initialScene: String) 
                 putExtra(StlDemoConstants.INITIAL_SCENE_EXTRA, initialScene)
                 putExtra(StlDemoConstants.FULLSCREEN_EXTRA, true)
                 putExtra(StlDemoConstants.DISABLE_RIPPLE_EXTRA, true)
+                if (enableOverlays) {
+                    putExtra(StlDemoConstants.OVERLAYS_EXTRA, true)
+                }
+
+                notificationsInShade?.let { putExtra(StlDemoConstants.NOTIFICATIONS_IN_SHADE, it) }
             }
 
     val device = device()
@@ -61,47 +70,71 @@ fun SceneTransitionLayoutBenchmarkScope.startDemoActivity(initialScene: String) 
     device.waitForObject(sceneSelector(initialScene))
 }
 
-fun SceneTransitionLayoutBenchmarkScope.setupSwipeFromScene(fromScene: String, toScene: String) {
-    startDemoActivity(initialScene = fromScene)
+fun SceneTransitionLayoutBenchmarkScope.setupSwipeFromScene(
+    fromScene: String,
+    toScene: String,
+    toContentIsOverlay: Boolean,
+) {
+    startDemoActivity(initialScene = fromScene, enableOverlays = toContentIsOverlay)
 
     // Wait for the root SceneTransitionLayout to be there. Note that startDemoActivity already
     // waited for fromScene, so we know it's there.
     val device = device()
-    device.waitForObject(StlDemoConstants.ROOT_STL_SELECTOR)
+    device.waitForObject(StlDemoConstants.ROOT_STL_SELECTOR_IDLE)
 
     // Verify that toScene is not there yet.
     device.waitUntilGone(sceneSelector(toScene))
 }
 
-fun swipeFromScene(fromScene: String, toScene: String, direction: Direction) {
+fun swipeFromScene(
+    fromScene: String,
+    toContent: String,
+    direction: Direction,
+    toContentIsOverlay: Boolean,
+    swipeOn: BySelector? = null,
+) {
     // Swipe in the given direction.
     val densityDpi = context().resources.configuration.densityDpi
     val density = densityDpi.toFloat() / DisplayMetrics.DENSITY_DEFAULT
     val swipeSpeed = 1_500 // in dp/s
     val device = device()
+
+    val swipeOn = swipeOn ?: StlDemoConstants.ROOT_STL_SELECTOR_IDLE
+    device.waitForObject(swipeOn)
     device
-        .findObject(StlDemoConstants.ROOT_STL_SELECTOR)
+        .findObject(swipeOn)
         .swipe(direction, /* percent= */ 0.9f, /* speed= */ (swipeSpeed * density).roundToInt())
 
-    // Wait for fromScene to disappear.
-    device.waitUntilGone(sceneSelector(fromScene))
+    if (!toContentIsOverlay) {
+        // Wait for fromScene to disappear.
+        device.waitUntilGone(sceneSelector(fromScene))
+    }
 
-    // Check that we are at toScene.
-    device.waitForObject(sceneSelector(toScene))
+    // Check that we are at toContent.
+    device.waitForObject(contentSelector(toContent, toContentIsOverlay))
+
+    // Wait for the layout to be idle.
+    device.waitForObject(StlDemoConstants.ROOT_STL_SELECTOR_IDLE)
 }
 
 /**
- * Navigate back to [previousScene] assuming that we are currently on [currentScene] and that going
- * back will land us at [previousScene].
+ * Navigate back to [previousScene] assuming that we are currently on [currentContent] and that
+ * going back will land us at [previousScene].
  */
-fun navigateBackToPreviousScene(previousScene: String, currentScene: String) {
+fun navigateBackToPreviousScene(
+    previousScene: String,
+    currentContent: String,
+    currentContentIsOverlay: Boolean,
+) {
     val device = device()
+    val currentContentSelector = contentSelector(currentContent, currentContentIsOverlay)
     device.waitUntilGone(sceneSelector(previousScene))
-    device.waitForObject(sceneSelector(currentScene))
+    device.waitForObject(currentContentSelector)
 
     device.pressBack()
-    device.waitUntilGone(sceneSelector(currentScene))
+    device.waitUntilGone(currentContentSelector)
     device.waitForObject(sceneSelector(previousScene))
+    device.waitForObject(StlDemoConstants.ROOT_STL_SELECTOR_IDLE)
 }
 
 private fun instrumentation() = InstrumentationRegistry.getInstrumentation()
@@ -124,16 +157,28 @@ private fun UiDevice.waitUntilGone(selector: BySelector, timeout: Long = 5_000) 
 
 private fun sceneSelector(scene: String) = By.res("scene:$scene")
 
+private fun overlaySelector(overlay: String) = By.res("overlay:$overlay")
+
+private fun contentSelector(toContent: String, toContentIsOverlay: Boolean): BySelector {
+    return if (toContentIsOverlay) overlaySelector(toContent) else sceneSelector(toContent)
+}
+
 object StlDemoConstants {
     const val PACKAGE = "com.android.compose.animation.scene.demo.app"
     val LOCKSCREEN_SCENE by AdaptiveScene("Lockscreen", "SplitLockscreen")
     val SHADE_SCENE by AdaptiveScene("Shade", "SplitShade")
     const val QUICK_SETTINGS_SCENE = "QuickSettings"
+    const val NOTIFICATIONS_OVERLAY = "NotificationsOverlay"
+    const val QUICK_SETTINGS_OVERLAY = "QuickSettingsOverlay"
 
     internal const val INITIAL_SCENE_EXTRA = "initial_scene"
     internal const val FULLSCREEN_EXTRA = "fullscreen"
     internal const val DISABLE_RIPPLE_EXTRA = "disable_ripple"
-    internal val ROOT_STL_SELECTOR = By.res("SystemUiSceneTransitionLayout")
+    internal const val NOTIFICATIONS_IN_SHADE = "notifications_in_shade"
+    internal const val OVERLAYS_EXTRA = "overlays"
+    internal val ROOT_STL_SELECTOR_IDLE = By.res("SystemUiSceneTransitionLayout:idle")
+    val STL_START_HALF_SELECTOR = By.res("StlStartHalf")
+    val STL_END_HALF_SELECTOR = By.res("StlEndHalf")
 }
 
 /** A scene whose key depends on whether we are using split scenes or not. */

@@ -16,42 +16,31 @@
 
 package com.android.compose.animation.scene.demo.transitions
 
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.pager.PagerState
 import com.android.compose.animation.scene.InterruptionHandler
 import com.android.compose.animation.scene.InterruptionResult
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.content.state.TransitionState
-import com.android.compose.animation.scene.demo.DemoConfiguration
 import com.android.compose.animation.scene.demo.Scenes
-import com.android.compose.animation.scene.demo.SpringConfiguration
 import com.android.compose.animation.scene.reveal.ContainerRevealHaptics
 import com.android.compose.animation.scene.transitions
+import com.android.mechanics.behavior.VerticalExpandContainerSpec
 
 fun systemUiTransitions(
     qsPagerState: PagerState,
-    springConfiguration: SpringConfiguration,
-    configuration: DemoConfiguration,
     revealHaptics: ContainerRevealHaptics,
+    shadeMotionSpec: VerticalExpandContainerSpec,
 ) = transitions {
     interruptionHandler = DemoInterruptionHandler
-    defaultSwipeSpec =
-        spring(
-            stiffness = springConfiguration.stiffness,
-            dampingRatio = springConfiguration.dampingRatio,
-            visibilityThreshold = 0.5f,
-        )
-    defaultOverscrollProgressConverter = configuration.overscrollProgressConverter
 
     alwaysOnDisplayTransitions()
-    shadeTransitions(qsPagerState, configuration)
+    shadeTransitions(qsPagerState)
     splitShadeTransitions()
-    quickSettingsTransitions(configuration)
-    lockscreenTransitions(configuration)
-    bouncerTransitions(configuration)
+    quickSettingsTransitions()
+    lockscreenTransitions()
     launcherTransitions()
-    notificationShadeTransitions(revealHaptics)
-    quickSettingsShadeTransitions(revealHaptics)
+    notificationShadeTransitions(revealHaptics, shadeMotionSpec)
+    quickSettingsShadeTransitions(revealHaptics, shadeMotionSpec)
 }
 
 object DemoInterruptionHandler : InterruptionHandler {

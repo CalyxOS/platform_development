@@ -22,15 +22,17 @@ import {
 } from '@angular/core/testing';
 import {FormsModule} from '@angular/forms';
 import {MatButtonModule} from '@angular/material/button';
+import {MatPseudoCheckboxModule} from '@angular/material/core';
 import {MatDividerModule} from '@angular/material/divider';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatIconModule} from '@angular/material/icon';
 import {MatInputModule} from '@angular/material/input';
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 import {MatSelectModule} from '@angular/material/select';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {assertDefined} from 'common/assert_utils';
-import {Timestamp} from 'common/time';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
+import {TimestampConverterUtils} from 'common/time/test_utils';
+import {Timestamp} from 'common/time/time';
 import {TraceBuilder} from 'test/unit/trace_builder';
 import {TraceEntry} from 'trace/trace';
 import {TraceType} from 'trace/trace_type';
@@ -78,6 +80,8 @@ describe('LogComponent', () => {
         MatDividerModule,
         MatButtonModule,
         MatIconModule,
+        MatPseudoCheckboxModule,
+        MatProgressSpinnerModule,
       ],
       declarations: [
         LogComponent,
@@ -278,6 +282,23 @@ describe('LogComponent', () => {
     expect(timestamp).toBeDefined();
   });
 
+  it('does not show button for propagateEntryTimestamp field if entry timestamp invalid', () => {
+    expect(
+      htmlElement.querySelectorAll<HTMLButtonElement>(
+        `.${testColumn3.cssClass} .time-button`,
+      ).length,
+    ).toEqual(2);
+    spyOn(component.entries[1].traceEntry, 'hasValidTimestamp').and.returnValue(
+      false,
+    );
+    fixture.detectChanges();
+    expect(
+      htmlElement.querySelectorAll<HTMLButtonElement>(
+        `.${testColumn3.cssClass} .time-button`,
+      ).length,
+    ).toEqual(1);
+  });
+
   it('changes css class on entry click and does not scroll', () => {
     htmlElement.addEventListener(ViewerEvents.LogEntryClick, (event) => {
       const index = (event as CustomEvent).detail;
@@ -303,6 +324,16 @@ describe('LogComponent', () => {
     component.entries = [];
     fixture.detectChanges();
     expect(htmlElement.querySelector('.placeholder-text')).toBeTruthy();
+    component.isFetchingData = true;
+    fixture.detectChanges();
+    expect(htmlElement.querySelector('.placeholder-text')).toBeNull();
+  });
+
+  it('shows fetching data message', () => {
+    expect(htmlElement.querySelector('.fetching-data')).toBeNull();
+    component.isFetchingData = true;
+    fixture.detectChanges();
+    expect(htmlElement.querySelector('.fetching-data')).toBeTruthy();
   });
 
   it('formats timestamp without date unless multiple dates present', () => {
@@ -318,13 +349,13 @@ describe('LogComponent', () => {
     setComponentInputData(false);
     fixture.detectChanges();
     expect(entry.textContent?.trim()).toEqual(
-      '1970-01-01, 00:00:00.000 Test tag 21234 1970-01-01, 00:00:00.000',
+      '1970-01-01, 00:00:00.000 Test tag 21234 N/A',
     );
 
     spy.and.returnValue(false);
     fixture.detectChanges();
     expect(entry.textContent?.trim()).toEqual(
-      '00:00:00.000 Test tag 21234 00:00:00.000',
+      '00:00:00.000 Test tag 21234 N/A',
     );
   });
 
@@ -347,7 +378,7 @@ describe('LogComponent', () => {
     const fields2 = [
       {spec: testColumn1, value: 'Test tag 2'},
       {spec: testColumn2, value: 1234},
-      {spec: testColumn3, value: fieldTime, propagateEntryTimestamp: true},
+      {spec: testColumn3, value: 'N/A', propagateEntryTimestamp: true},
     ];
 
     const trace = new TraceBuilder<PropertyTreeNode>()

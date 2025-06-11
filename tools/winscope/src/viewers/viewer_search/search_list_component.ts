@@ -16,7 +16,8 @@
 
 import {NgTemplateOutlet} from '@angular/common';
 import {Component, Input} from '@angular/core';
-import {Search} from './ui_data';
+import {FormControl} from '@angular/forms';
+import {ListedSearch} from './ui_data';
 
 @Component({
   selector: 'search-list',
@@ -29,49 +30,45 @@ import {Search} from './ui_data';
         #searchName
         class="mat-body-2 listed-search-name"
         [matTooltipDisabled]="!showTooltip(search, searchName)"
+        matTooltipPosition="right"
         [matTooltip]="getTooltip(search)"> {{search.name}} </span>
       <div class="listed-search-date-options">
-        <span> {{formatTimeMs(search.timeMs)}} </span>
-        <button
-          mat-icon-button
-          class="listed-search-options"
-          *ngIf="menuOptions.length > 0"
-          [class.force-show]="searchOptionsTarget === search"
-          (click)="searchOptionsTarget = search"
-          [cdkMenuTriggerFor]="optionsMenu">
-          <mat-icon> more_vert </mat-icon>
-        </button>
+        <ng-container *ngFor="let opt of listItemOptions">
+          <button
+            mat-icon-button
+            class="listed-search-option"
+            *ngIf="opt.onClickCallback"
+            [matTooltip]="opt.name"
+            [matTooltipShowDelay]="500"
+            (click)="opt.onClickCallback(search)">
+            <mat-icon class="material-symbols-outlined">{{opt.icon}}</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            class="listed-search-option"
+            *ngIf="opt.menu"
+            [matTooltip]="opt.name"
+            [matTooltipShowDelay]="500"
+            (click)="searchOptionsTarget = search"
+            [class.force-show]="searchOptionsTarget === search"
+            [cdkMenuTriggerFor]="optionsMenu">
+            <mat-icon class="material-symbols-outlined">{{opt.icon}}</mat-icon>
+          </button>
 
-        <ng-template #optionsMenu>
-          <div class="context-menu" cdkMenu>
-            <div class="context-menu-item-container">
-              <ng-container *ngFor="let opt of menuOptions">
-                <span
-                  *ngIf="opt.innerMenu"
-                  class="context-menu-item"
-                  cdkMenuItem
-                  [cdkMenuTriggerFor]="innerMenu"> {{opt.name}} </span>
-                <span
-                  *ngIf="!opt.innerMenu"
-                  class="context-menu-item"
-                  (click)="opt.onClickCallback(search)"
-                  cdkMenuItem> {{opt.name}} </span>
-
-                  <ng-template #innerMenu>
-                    <div class="context-menu inner-menu" cdkMenu>
-                      <div class="context-menu-item-container">
-                        <span class="context-menu-item" [cdkMenuItemDisabled]="true" cdkMenuItem>
-                          <ng-container
-                            [ngTemplateOutlet]="opt.innerMenu"
-                            [ngTemplateOutletContext]="{search}"></ng-container>
-                        </span>
-                      </div>
-                    </div>
-                  </ng-template>
-              </ng-container>
+          <ng-template #optionsMenu>
+            <div class="context-menu" (closed)="searchOptionsTarget = undefined" cdkMenu>
+              <div class="context-menu-item-container">
+                <span class="context-menu-item" [cdkMenuItemDisabled]="true" cdkMenuItem>
+                  <ng-container
+                    [ngTemplateOutlet]="opt.menu"
+                    [ngTemplateOutletContext]="{query: search.query, control}"></ng-container>
+                </span>
+              </div>
             </div>
-          </div>
-        </ng-template>
+          </ng-template>
+        </ng-container>
+
+        <span> {{formatTimeMs(search.timeMs)}} </span>
       </div>
     </div>
   `,
@@ -90,7 +87,7 @@ import {Search} from './ui_data';
       .listed-search:hover {
           background-color: var(--hover-element-color);
       }
-      .listed-search:not(:hover) .listed-search-options:not(.force-show) {
+      .listed-search:not(:hover) .listed-search-option:not(.force-show) {
         visibility: hidden;
       }
       .listed-search-name {
@@ -103,26 +100,29 @@ import {Search} from './ui_data';
         flex-direction: row;
         align-items: center;
         white-space: pre-line;
+        text-align: right;
       }
-      .listed-search-options {
+      .listed-search-option {
         width: fit-content;
         cursor: pointer;
+        transform: scale(0.8);
       }
     `,
   ],
 })
 export class SearchListComponent {
-  @Input() searches: Search[] = [];
+  @Input() searches: ListedSearch[] = [];
   @Input() placeholderText = '';
-  @Input() menuOptions: MenuOption[] = [];
+  @Input() listItemOptions: ListItemOption[] = [];
+  @Input() control = new FormControl('');
 
-  searchOptionsTarget: Search | undefined;
+  searchOptionsTarget: ListedSearch | undefined;
 
-  showTooltip(search: Search, el: HTMLElement) {
+  showTooltip(search: ListedSearch, el: HTMLElement) {
     return search.name !== search.query || el.scrollWidth > el.offsetWidth;
   }
 
-  getTooltip(search: Search) {
+  getTooltip(search: ListedSearch) {
     if (search.name === search.query) return search.query;
     return search.name + ': ' + search.query;
   }
@@ -133,8 +133,9 @@ export class SearchListComponent {
   }
 }
 
-export interface MenuOption {
+export interface ListItemOption {
   name: string;
-  onClickCallback: (search: Search) => void;
-  innerMenu?: NgTemplateOutlet;
+  icon: string;
+  onClickCallback?: (search: ListedSearch) => void;
+  menu?: NgTemplateOutlet;
 }

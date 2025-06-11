@@ -513,18 +513,11 @@ fn generate_cargo_out(cfg: &VariantConfig, intermediates_dir: &Path) -> Result<C
 
     let mut cargo_out = String::new();
     if cfg.run_cargo {
-        let envs = if cfg.extra_cfg.is_empty() {
-            vec![]
-        } else {
-            vec![(
-                "RUSTFLAGS",
-                cfg.extra_cfg
-                    .iter()
-                    .map(|cfg_flag| format!("--cfg {}", cfg_flag))
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            )]
-        };
+        let mut rustflags = vec!["--cap-lints".to_string(), "allow".to_string()];
+        if !cfg.extra_cfg.is_empty() {
+            rustflags.extend(cfg.extra_cfg.iter().map(|cfg_flag| format!("--cfg {}", cfg_flag)));
+        }
+        let envs = vec![("RUSTFLAGS", rustflags.join(" "))];
 
         // cargo build
         cargo_out += &run_cargo(
@@ -654,9 +647,10 @@ fn write_build_files(
             )?;
         }
     }
+    let main_module_name_overrides = &cfg.variants.first().unwrap().module_name_overrides;
     if !mk_contents.is_empty() {
         // If rules.mk is generated, then make it accessible via dirgroup.
-        bp_contents += &generate_android_bp_for_rules_mk(package_name)?;
+        bp_contents += &generate_android_bp_for_rules_mk(package_name, main_module_name_overrides)?;
     }
 
     let def = PackageConfig::default();
@@ -673,7 +667,7 @@ fn write_build_files(
             package_cfg,
             read_license_header(&output_path, true)?.trim(),
             crates,
-            &cfg.variants.first().unwrap().module_name_overrides,
+            main_module_name_overrides,
         )?;
         let bp_contents = package_header + &bp_contents;
         write_format_android_bp(&output_path, &bp_contents, package_cfg.patch.as_deref())?;
@@ -803,9 +797,14 @@ fn choose_licenses(license: &str) -> Result<Vec<&str>> {
         // inspection of the terms indicates the correct interpretation is "(MIT OR APACHE) AND NCSA".
         "MIT/Apache-2.0/NCSA" => vec!["Apache-2.0", "NCSA"],
 
+        // Variations on "Apache-2.0 AND BSD-*"
+        "Apache-2.0 AND BSD-3-Clause" => vec!["Apache-2.0", "BSD-3-Clause"],
+
         // Other cases.
         "MIT OR LGPL-3.0-or-later" => vec!["MIT"],
         "MIT/BSD-3-Clause" => vec!["MIT"],
+        "MIT AND (MIT OR Apache-2.0)" => vec!["MIT"],
+        "0BSD OR MIT OR Apache-2.0" => vec!["Apache-2.0"],
 
         "LGPL-2.1-only OR BSD-2-Clause" => vec!["BSD-2-Clause"],
         _ => {
@@ -927,11 +926,19 @@ fn generate_rules_mk(
 }
 
 /// Generates and returns a Soong Blueprint for a Trusty rules.mk
-fn generate_android_bp_for_rules_mk(package_name: &str) -> Result<String> {
+fn generate_android_bp_for_rules_mk(
+    package_name: &str,
+    module_name_overrides: &BTreeMap<String, String>,
+) -> Result<String> {
     let mut bp_contents = String::new();
 
     let mut m = BpModule::new("dirgroup".to_string());
-    m.props.set("name", format!("trusty_dirgroup_external_rust_crates_{}", package_name));
+
+    let default_dirgroup_name = format!("trusty_dirgroup_external_rust_crates_{}", package_name);
+    let dirgroup_name =
+        override_module_name(&default_dirgroup_name, &[], module_name_overrides, &RENAME_MAP)
+            .unwrap_or(default_dirgroup_name);
+    m.props.set("name", dirgroup_name);
     m.props.set("dirs", vec!["."]);
     m.props.set("visibility", vec!["//trusty/vendor/google/aosp/scripts"]);
 
@@ -1101,7 +1108,7 @@ fn crate_to_bp_modules(
         if !crate_type.is_test() && package_cfg.host_supported && package_cfg.host_first_multilib {
             m.props.set("compile_multilib", "first");
         }
-        if crate_type.is_c_library() {
+        if crate_type.is_library() {
             m.props.set_if_nonempty("include_dirs", package_cfg.exported_c_header_dir.clone());
         }
 
@@ -1132,14 +1139,11 @@ fn crate_to_bp_modules(
                 .clone()
                 .into_iter()
                 .filter(|crate_cfg| !cfg.cfg_blocklist.contains(crate_cfg))
+                .map(|crate_cfg| crate_cfg.replace(r#"""#, r#"\""#))
                 .collect(),
         );
 
-        let mut flags = Vec::new();
-        if !crate_.cap_lints.is_empty() {
-            flags.push(crate_.cap_lints.clone());
-        }
-        flags.extend(crate_.codegens.iter().map(|codegen| format!("-C {}", codegen)));
+        let flags = crate_.codegens.iter().map(|codegen| format!("-C {}", codegen)).collect();
         m.props.set_if_nonempty("flags", flags);
 
         let mut rust_libs = Vec::new();
@@ -1183,32 +1187,28 @@ fn crate_to_bp_modules(
         m.props.set_if_nonempty("shared_libs", process_lib_deps(crate_.shared_libs.clone()));
         m.props.set_if_nonempty("aliases", aliases);
 
-        if package_cfg.device_supported {
-            if !crate_type.is_test() {
-                if cfg.native_bridge_supported {
-                    m.props.set("native_bridge_supported", true);
-                }
-                if cfg.product_available {
-                    m.props.set("product_available", true);
-                }
-                if cfg.ramdisk_available {
-                    m.props.set("ramdisk_available", true);
-                }
-                if cfg.recovery_available {
-                    m.props.set("recovery_available", true);
-                }
-                if cfg.vendor_available {
-                    m.props.set("vendor_available", true);
-                }
-                if cfg.vendor_ramdisk_available {
-                    m.props.set("vendor_ramdisk_available", true);
-                }
+        if package_cfg.device_supported && !crate_type.is_test() {
+            if cfg.native_bridge_supported {
+                m.props.set("native_bridge_supported", true);
             }
-            if crate_type.is_library() {
-                m.props.set_if_nonempty("apex_available", cfg.apex_available.clone());
-                if let Some(min_sdk_version) = &cfg.min_sdk_version {
-                    m.props.set("min_sdk_version", min_sdk_version.clone());
-                }
+            if cfg.product_available {
+                m.props.set("product_available", true);
+            }
+            if cfg.ramdisk_available {
+                m.props.set("ramdisk_available", true);
+            }
+            if cfg.recovery_available {
+                m.props.set("recovery_available", true);
+            }
+            if cfg.vendor_available {
+                m.props.set("vendor_available", true);
+            }
+            if cfg.vendor_ramdisk_available {
+                m.props.set("vendor_ramdisk_available", true);
+            }
+            m.props.set_if_nonempty("apex_available", cfg.apex_available.clone());
+            if let Some(min_sdk_version) = &cfg.min_sdk_version {
+                m.props.set("min_sdk_version", min_sdk_version.clone());
             }
         }
         if crate_type.is_test() {
@@ -1303,9 +1303,6 @@ fn crate_to_rulesmk(
     contents += &format!("MODULE_RUST_EDITION := {}\n", crate_.edition);
 
     let mut flags = Vec::new();
-    if !crate_.cap_lints.is_empty() {
-        flags.push(crate_.cap_lints.clone());
-    }
     flags.extend(crate_.codegens.iter().map(|codegen| format!("-C {}", codegen)));
     flags.extend(crate_.features.iter().map(|feat| format!("--cfg 'feature=\"{feat}\"'")));
     flags.extend(
@@ -1327,7 +1324,7 @@ fn crate_to_rulesmk(
             override_module_name(
                 &format!("lib{dep}"),
                 &package_cfg.dep_blocklist,
-                &cfg.module_name_overrides,
+                &BTreeMap::new(),
                 &RULESMK_RENAME_MAP,
             )
         })
@@ -1356,6 +1353,7 @@ mod tests {
     use super::*;
     use googletest::matchers::eq;
     use googletest::prelude::assert_that;
+    use googletest::GoogleTestSupport;
     use std::env::{current_dir, set_current_dir};
     use std::fs::{self, read_to_string};
     use std::path::PathBuf;
@@ -1447,7 +1445,7 @@ mod tests {
                 .unwrap();
             }
 
-            assert_that!(output, eq(expected_output));
+            assert_that!(output, eq(&expected_output), "for {}", testdata_directory_path.display());
 
             set_current_dir(old_current_dir).unwrap();
         }
@@ -1509,6 +1507,26 @@ mod tests {
                     raw_block: None
                 }
             }]
+        );
+    }
+
+    #[test]
+    fn escape_cfgs() {
+        let c = Crate {
+            name: "name".to_string(),
+            package_name: "package_name".to_string(),
+            edition: "2021".to_string(),
+            types: vec![CrateType::Lib],
+            cfgs: vec![r#"foo="bar""#.to_string()],
+            ..Default::default()
+        };
+        let cfg = VariantConfig { ..Default::default() };
+        let package_cfg = PackageVariantConfig { ..Default::default() };
+        let modules = crate_to_bp_modules(&c, &cfg, &package_cfg, &[]).unwrap();
+
+        assert_eq!(
+            modules[0].props.map.get("cfgs"),
+            Some(&BpValue::List(vec![BpValue::String(r#"foo=\"bar\""#.to_string())]))
         );
     }
 

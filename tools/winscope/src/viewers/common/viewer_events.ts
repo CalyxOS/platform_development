@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import {Timestamp} from 'common/time';
+import {Timestamp} from 'common/time/time';
 import {TraceEntry} from 'trace/trace';
 import {TextFilter} from 'viewers/common/text_filter';
-import {Search} from 'viewers/viewer_search/ui_data';
+import {ListedSearch} from 'viewers/viewer_search/ui_data';
 import {LogHeader} from './ui_data_log';
 
 export enum ViewerEvents {
@@ -35,10 +35,14 @@ export enum ViewerEvents {
   HighlightedPropertyChange = 'HighlightedPropertyChange',
 
   RectsUserOptionsChange = 'RectsUserOptionsChange',
-
-  AdditionalPropertySelected = 'AdditionalPropertySelected',
   RectsDblClick = 'RectsDblClick',
   MiniRectsDblClick = 'MiniRectsDblClick',
+  RectTypeButtonClick = 'RectTypeButtonClick',
+
+  OverlayDblClick = 'OverlayDblClick',
+
+  AdditionalPropertySelected = 'AdditionalPropertySelected',
+  PropagatePropertyClick = 'PropagatePropertyClick',
 
   TimestampClick = 'TimestampClick',
   LogEntryClick = 'LogEntryClick',
@@ -51,6 +55,8 @@ export enum ViewerEvents {
   SearchQueryClick = 'SearchQueryClick',
   SaveQueryClick = 'SaveQueryClick',
   DeleteSavedQueryClick = 'DeleteSavedQueryClick',
+  AddQueryClick = 'AddQueryClick',
+  ClearQueryClick = 'ClearQueryClick',
 }
 
 export class RectDblClickDetail {
@@ -72,8 +78,16 @@ export class LogTextFilterChangeDetail {
   constructor(public header: LogHeader, public filter: TextFilter) {}
 }
 
-export class QueryClickDetail {
+export class SearchQueryClickDetail {
+  constructor(public query: string, public uid: number) {}
+}
+
+export class AddQueryClickDetail {
   constructor(public query: string) {}
+}
+
+export class ClearQueryClickDetail {
+  constructor(public uid: number) {}
 }
 
 export class SaveQueryClickDetail {
@@ -81,5 +95,5 @@ export class SaveQueryClickDetail {
 }
 
 export class DeleteSavedQueryClickDetail {
-  constructor(public search: Search) {}
+  constructor(public search: ListedSearch) {}
 }

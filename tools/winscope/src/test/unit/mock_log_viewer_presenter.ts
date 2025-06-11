@@ -15,7 +15,7 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
-import {Store} from 'common/store';
+import {Store} from 'common/store/store';
 import {Trace} from 'trace/trace';
 import {PropertyTreeNode} from 'trace/tree_node/property_tree_node';
 import {
@@ -151,6 +151,7 @@ the default for its data type.`,
 }
 
 export class MockData implements UiDataLog {
+  isFetchingData = false;
   constructor(
     public headers: LogHeader[],
     public entries: LogEntry[],

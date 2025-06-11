@@ -23,8 +23,9 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {assertDefined} from 'common/assert_utils';
-import {MenuOption, SearchListComponent} from './search_list_component';
-import {Search} from './ui_data';
+import {UnitTestUtils} from 'test/unit/utils';
+import {ListItemOption, SearchListComponent} from './search_list_component';
+import {ListedSearch} from './ui_data';
 
 describe('SearchListComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
@@ -60,10 +61,10 @@ describe('SearchListComponent', () => {
     expect(htmlElement.textContent?.trim()).toEqual(placeholderText);
   });
 
-  it('shows search names with tooltips', () => {
+  it('shows search names with tooltips', async () => {
     component.searches = [
-      new Search('query1', 'name1'),
-      new Search('query2', 'query2'),
+      new ListedSearch('query1', 'name1'),
+      new ListedSearch('query2', 'query2'),
     ];
     fixture.detectChanges();
 
@@ -81,90 +82,69 @@ describe('SearchListComponent', () => {
     expect(queryName2.textContent?.trim()).toEqual('query2');
 
     // shows tooltip when name and query are different
-    queryName1.dispatchEvent(new Event('mouseenter'));
-    fixture.detectChanges();
-    expect(
-      assertDefined(
-        document.querySelector<HTMLElement>('.mat-tooltip-panel'),
-      ).textContent?.trim(),
-    ).toEqual('name1: query1');
-    queryName1.dispatchEvent(new Event('mouseleave'));
-    fixture.detectChanges();
+    await UnitTestUtils.checkTooltips([queryName1], ['name1: query1'], fixture);
 
     // does not show tooltip when name and query are the same
-    queryName2.dispatchEvent(new Event('mouseenter'));
-    fixture.detectChanges();
-    expect(
-      document.querySelector<HTMLElement>('.mat-tooltip-panel'),
-    ).toBeNull();
+    await UnitTestUtils.checkTooltips([queryName2], [undefined], fixture);
 
     // shows tooltip when element is overflowing
     queryName2.style.maxWidth = queryName2.offsetWidth / 2 + 'px';
     fixture.detectChanges();
-    queryName2.dispatchEvent(new Event('mouseenter'));
-    fixture.detectChanges();
-    expect(
-      assertDefined(
-        document.querySelector<HTMLElement>('.mat-tooltip-panel'),
-      ).textContent?.trim(),
-    ).toEqual('query2');
+    await UnitTestUtils.checkTooltips([queryName2], ['query2'], fixture);
   });
 
   it('formats search dates', () => {
-    spyOn(Date, 'now').and.returnValue(0);
-    component.searches = [new Search('query1', 'name1')];
+    spyOn(Date, 'now').and.returnValue(1000);
+    component.searches = [new ListedSearch('query1', 'name1')];
     fixture.detectChanges();
+    const expectedDate = new Date(1000);
     expect(
       htmlElement
         .querySelector('.listed-search-date-options')
         ?.textContent?.trim(),
-    ).toEqual('01:00\n1/1/1970');
+    ).toEqual(
+      `${expectedDate
+        .toTimeString()
+        .slice(0, 5)}\n${expectedDate.toLocaleDateString()}`,
+    );
   });
 
-  it('shows menu options and triggers callback on interaction', () => {
-    let optionClicked: Search | undefined;
-    component.searches = [new Search('query1', 'name1')];
+  it('shows options and triggers callback on interaction', () => {
+    let optionClicked: ListedSearch | undefined;
+    component.searches = [new ListedSearch('query1', 'name1')];
     fixture.detectChanges();
     // does not show menu button if no options
     expect(htmlElement.querySelector('.listed-search-options')).toBeNull();
 
-    const onClickCallback = (search: Search) => (optionClicked = search);
-    component.menuOptions = [{name: 'option1', onClickCallback}];
+    const onClickCallback = (search: ListedSearch) => (optionClicked = search);
+    component.listItemOptions = [
+      {name: 'option1', icon: 'test', onClickCallback},
+    ];
     fixture.detectChanges();
-    assertDefined(
-      htmlElement.querySelector<HTMLElement>('.listed-search-options'),
-    ).click();
+
     const option = assertDefined(
-      document.querySelector<HTMLElement>('.context-menu .context-menu-item'),
+      htmlElement.querySelector<HTMLElement>('.listed-search-option'),
     );
-    expect(option.textContent?.trim()).toEqual('option1');
+    UnitTestUtils.checkTooltips([option], ['option1'], fixture);
     option.click();
     expect(optionClicked).toEqual(component.searches[0]);
   });
 
-  it('shows inner menu', () => {
-    let clickedSearch: Search | undefined;
-    component.menuOptions = [
-      {
-        name: 'option1',
-        onClickCallback: (search: Search) => (clickedSearch = search),
-        innerMenu: component.testTemplate,
-      },
+  it('shows menu', () => {
+    component.listItemOptions = [
+      {name: 'option1', icon: 'test', menu: component.testTemplate},
     ];
-    component.searches = [new Search('query1', 'name1')];
+    component.searches = [new ListedSearch('query1', 'name1')];
     fixture.detectChanges();
-    assertDefined(
-      htmlElement.querySelector<HTMLElement>('.listed-search-options'),
-    ).click();
-
     const option = assertDefined(
-      document.querySelector<HTMLElement>('.context-menu .context-menu-item'),
+      htmlElement.querySelector<HTMLElement>('.listed-search-option'),
     );
-    expect(option.textContent?.trim()).toEqual('option1');
-    option.dispatchEvent(new MouseEvent('mouseenter'));
-
-    const innerMenu = assertDefined(document.querySelector('.inner-menu'));
-    expect(innerMenu.querySelector('.inner-menu-item')).toBeTruthy();
+    UnitTestUtils.checkTooltips([option], ['option1'], fixture);
+    option.click();
+    const menu = assertDefined(
+      document.querySelector<HTMLElement>('.context-menu'),
+    );
+    expect(menu.querySelector('.test-menu-item')).toBeTruthy();
   });
 
   @Component({
@@ -173,10 +153,10 @@ describe('SearchListComponent', () => {
       <search-list
         [searches]="searches"
         [placeholderText]="placeholderText"
-        [menuOptions]="menuOptions"></search-list>
+        [listItemOptions]="listItemOptions"></search-list>
 
       <ng-template #testTemplate>
-        <span class="inner-menu-item"></span>
+        <span class="test-menu-item"></span>
       </ng-template>
     `,
   })
@@ -186,8 +166,8 @@ describe('SearchListComponent', () => {
       | undefined;
     @ViewChild('testTemplate') testTemplate: NgTemplateOutlet | undefined;
 
-    searches: Search[] = [];
+    searches: ListedSearch[] = [];
     placeholderText: string | undefined;
-    menuOptions: MenuOption[] = [];
+    listItemOptions: ListItemOption[] = [];
   }
 });

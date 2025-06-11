@@ -19,13 +19,13 @@ package com.android.compose.animation.scene.demo.transitions
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.ui.unit.dp
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.Edge
 import com.android.compose.animation.scene.SceneTransitionsBuilder
 import com.android.compose.animation.scene.TransitionBuilder
 import com.android.compose.animation.scene.UserActionDistance
 import com.android.compose.animation.scene.UserActionDistanceScope
-import com.android.compose.animation.scene.demo.DemoConfiguration
 import com.android.compose.animation.scene.demo.MediaPlayer
 import com.android.compose.animation.scene.demo.QuickSettings
 import com.android.compose.animation.scene.demo.QuickSettingsGrid
@@ -34,10 +34,7 @@ import com.android.compose.animation.scene.demo.Shade
 import com.android.compose.animation.scene.demo.notification.NotificationList
 import com.android.compose.animation.scene.inScene
 
-fun SceneTransitionsBuilder.shadeTransitions(
-    qsPagerState: PagerState,
-    configuration: DemoConfiguration,
-) {
+fun SceneTransitionsBuilder.shadeTransitions(qsPagerState: PagerState) {
     // The distance when swiping the Shade from/to a scene (except QuickSettings).
     val swipeDistance =
         object : UserActionDistance {
@@ -46,8 +43,10 @@ fun SceneTransitionsBuilder.shadeTransitions(
                 toContent: ContentKey,
                 orientation: Orientation,
             ): Float {
-                val distance = Shade.Elements.Scrim.targetOffset(Scenes.Shade)?.y ?: return 0f
-                check(distance > 0f) { "Scrim target offset in Shade is equal to $distance" }
+                val distance =
+                    (Shade.Elements.Scrim.targetOffset(Scenes.Shade)?.y ?: return 0f).coerceAtLeast(
+                        100.dp.toPx()
+                    )
 
                 // Use the bottom of the QS grid for the minimum distance, so that the distance is
                 // not too small if the scrim was scrolled at the top because it has a lot of
@@ -156,10 +155,6 @@ fun SceneTransitionsBuilder.shadeTransitions(
             fade(QuickSettings.Elements.Date)
         }
         timestampRange(startMillis = 350) { fade(Shade.Elements.Date) }
-    }
-
-    if (configuration.useOverscrollSpec) {
-        overscrollDisabled(Scenes.Shade, Orientation.Vertical)
     }
 }
 

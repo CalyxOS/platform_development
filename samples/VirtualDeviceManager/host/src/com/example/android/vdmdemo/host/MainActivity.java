@@ -39,6 +39,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 
+import com.example.android.vdmdemo.common.EdgeToEdgeUtils;
+
 import dagger.hilt.android.AndroidEntryPoint;
 
 import java.util.function.Consumer;
@@ -99,6 +101,8 @@ public class MainActivity extends Hilt_MainActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = requireViewById(R.id.main_tool_bar);
         setSupportActionBar(toolbar);
+
+        EdgeToEdgeUtils.applyTopInsets(toolbar);
 
         mHomeDisplayButton = requireViewById(R.id.create_home_display);
         mHomeDisplayButton.setVisibility(View.GONE);
@@ -200,7 +204,12 @@ public class MainActivity extends Hilt_MainActivity {
                 () -> {
                     if (mLauncher != null) {
                         mLauncherAdapter.update();
-                        mLauncher.setVisibility(visibility);
+                        if (mPreferenceController.getBoolean(
+                                R.string.internal_pref_home_displays_supported)) {
+                            mLauncher.setVisibility(visibility);
+                        } else {
+                            mLauncher.setVisibility(View.GONE);
+                        }
                     }
                     if (mHomeDisplayButton != null) {
                         mHomeDisplayButton.setEnabled(

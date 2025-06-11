@@ -15,7 +15,9 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
-import {InMemoryStorage} from 'common/in_memory_storage';
+import {InMemoryStorage} from 'common/store/in_memory_storage';
+import {TimestampConverterUtils} from 'common/time/test_utils';
+import {TimeUtils} from 'common/time/time_utils';
 import {
   ActiveTraceChanged,
   DarkModeToggled,
@@ -23,7 +25,6 @@ import {
 } from 'messaging/winscope_event';
 import {MockPresenter} from 'test/unit/mock_log_viewer_presenter';
 import {PropertyTreeBuilder} from 'test/unit/property_tree_builder';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {TraceBuilder} from 'test/unit/trace_builder';
 import {UnitTestUtils} from 'test/unit/utils';
 import {Trace} from 'trace/trace';
@@ -118,7 +119,7 @@ describe('AbstractLogViewerPresenter', () => {
     });
   });
 
-  it('adds events listeners', async () => {
+  it('adds event listeners', async () => {
     const element = makeElement();
     presenter.addEventListeners(element);
 
@@ -164,7 +165,7 @@ describe('AbstractLogViewerPresenter', () => {
     element.dispatchEvent(new CustomEvent(ViewerEvents.ArrowUpPress));
     expect(spy).toHaveBeenCalled();
 
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     spy = spyOn(presenter, 'onLogTimestampClick');
     element.dispatchEvent(
       new CustomEvent(ViewerEvents.TimestampClick, {
@@ -220,7 +221,7 @@ describe('AbstractLogViewerPresenter', () => {
     expect(uiData.propertiesTree).toBeUndefined();
     expect(uiData.headers).toEqual([]);
 
-    await assertDefined(presenter).onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
 
     expect(uiData.scrollToIndex).toBeDefined();
     expect(uiData.currentIndex).toBeDefined();
@@ -237,7 +238,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('processes trace position update and updates ui data', async () => {
-    await assertDefined(presenter).onAppEvent(secondPositionUpdate);
+    await sendPositionUpdate(secondPositionUpdate, true);
     expect(uiData.currentIndex).toEqual(1);
     expect(assertDefined(uiData.propertiesTree).id).toEqual(
       assertDefined(uiData.entries[1].propertiesTree).id,
@@ -251,12 +252,13 @@ describe('AbstractLogViewerPresenter', () => {
     const listenerSpy = jasmine.createSpy();
     document.addEventListener('keydown', listenerSpy);
 
-    await presenter.onAppEvent(
+    await sendPositionUpdate(
       new TracePositionUpdate(
         TracePosition.fromTimestamp(
           TimestampConverterUtils.makeElapsedTimestamp(-1n),
         ),
       ),
+      true,
     );
     expect(uiData.currentIndex).toBeUndefined();
 
@@ -271,7 +273,7 @@ describe('AbstractLogViewerPresenter', () => {
     pressRightArrowKey();
     expect(listenerSpy).toHaveBeenCalledTimes(2);
 
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate);
     pressRightArrowKey();
     expect(listenerSpy).toHaveBeenCalledTimes(2);
 
@@ -293,7 +295,7 @@ describe('AbstractLogViewerPresenter', () => {
 
     const emitEventSpy = jasmine.createSpy();
     presenter.setEmitEvent(emitEventSpy);
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
 
     await presenter.onPositionChangeByKeyPress(
       new KeyboardEvent('keydown', {key: 'ArrowRight'}),
@@ -320,7 +322,7 @@ describe('AbstractLogViewerPresenter', () => {
 
     const emitEventSpy = jasmine.createSpy();
     presenter.setEmitEvent(emitEventSpy);
-    await presenter.onAppEvent(lastEntryPositionUpdate);
+    await sendPositionUpdate(lastEntryPositionUpdate, true);
 
     await presenter.onPositionChangeByKeyPress(
       new KeyboardEvent('keydown', {key: 'ArrowRight'}),
@@ -328,7 +330,7 @@ describe('AbstractLogViewerPresenter', () => {
     expect(emitEventSpy).not.toHaveBeenCalled();
   });
 
-  it('propagates position with prev trace entry on left arrow key press', async () => {
+  it('propagates position with first prev trace entry with valid timestamp on left arrow key press', async () => {
     const trace = assertDefined(
       lastEntryPositionUpdate.position.entry,
     ).getFullTrace();
@@ -336,16 +338,19 @@ describe('AbstractLogViewerPresenter', () => {
 
     const emitEventSpy = jasmine.createSpy();
     presenter.setEmitEvent(emitEventSpy);
-    await presenter.onAppEvent(lastEntryPositionUpdate);
+    await sendPositionUpdate(lastEntryPositionUpdate, true);
 
+    const prevIndex = assertDefined(uiData.currentIndex) - 1;
+    spyOn(
+      uiData.entries[prevIndex].traceEntry,
+      'hasValidTimestamp',
+    ).and.returnValue(false);
     await presenter.onPositionChangeByKeyPress(
       new KeyboardEvent('keydown', {key: 'ArrowLeft'}),
     );
     expect(emitEventSpy).toHaveBeenCalledWith(
       new TracePositionUpdate(
-        TracePosition.fromTraceEntry(
-          uiData.entries[assertDefined(uiData.currentIndex) - 1].traceEntry,
-        ),
+        TracePosition.fromTraceEntry(uiData.entries[prevIndex - 1].traceEntry),
         true,
       ),
     );
@@ -357,7 +362,7 @@ describe('AbstractLogViewerPresenter', () => {
 
     const emitEventSpy = jasmine.createSpy();
     presenter.setEmitEvent(emitEventSpy);
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
 
     await presenter.onPositionChangeByKeyPress(
       new KeyboardEvent('keydown', {key: 'ArrowLeft'}),
@@ -366,7 +371,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('filters entries on select filter change', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     const header = uiData.headers[1];
 
     await presenter.onSelectFilterChange(header, ['0']);
@@ -386,7 +391,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('filters entries on text filter change', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     const header = uiData.headers[0];
     const filter = header.filter as LogTextFilter;
 
@@ -410,7 +415,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('updates indices when filters change', async () => {
-    await presenter.onAppEvent(lastEntryPositionUpdate);
+    await sendPositionUpdate(lastEntryPositionUpdate, true);
     presenter.onLogEntryClick(1);
     expect(uiData.currentIndex).toEqual(3);
     expect(uiData.selectedIndex).toEqual(1);
@@ -430,7 +435,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('updates properties tree when entry clicked', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
 
     await presenter.onLogEntryClick(2);
     expect(assertDefined(uiData.propertiesTree).id).toEqual(
@@ -445,7 +450,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('updates properties tree when changed by key press', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     await presenter.onLogEntryClick(0);
 
     await presenter.onArrowDownPress();
@@ -477,7 +482,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('emits event on log timestamp click', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     const spy = jasmine.createSpy();
     presenter.setEmitEvent(spy);
 
@@ -488,7 +493,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('emits event on raw timestamp click', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     const spy = jasmine.createSpy();
     presenter.setEmitEvent(spy);
 
@@ -500,7 +505,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('filters properties tree', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     expect(
       assertDefined(uiData.propertiesTree).getAllChildren().length,
     ).toEqual(3);
@@ -511,7 +516,7 @@ describe('AbstractLogViewerPresenter', () => {
   });
 
   it('shows/hides defaults', async () => {
-    await presenter.onAppEvent(positionUpdate);
+    await sendPositionUpdate(positionUpdate, true);
     expect(
       assertDefined(uiData.propertiesTree).getAllChildren().length,
     ).toEqual(3);
@@ -542,10 +547,12 @@ describe('AbstractLogViewerPresenter', () => {
       (newData) => (uiData = newData),
     );
 
-    await presenter.onAppEvent(
+    await sendPositionUpdate(
       TracePositionUpdate.fromTimestamp(
         TimestampConverterUtils.makeRealTimestamp(0n),
       ),
+      true,
+      presenter,
     );
 
     expect(uiData.entries).toEqual([]);
@@ -567,5 +574,18 @@ describe('AbstractLogViewerPresenter', () => {
 
   function pressRightArrowKey() {
     document.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight'}));
+  }
+
+  async function sendPositionUpdate(
+    update: TracePositionUpdate,
+    isFirst = false,
+    p = presenter,
+  ) {
+    await assertDefined(p).onAppEvent(update);
+    if (isFirst) {
+      expect(uiData.isFetchingData).toBeTrue(); // fetches data asynchronously
+      await TimeUtils.wait(() => !uiData.isFetchingData);
+    }
+    expect(uiData.isFetchingData).toBeFalse();
   }
 });

@@ -15,8 +15,8 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
-import {INVALID_TIME_NS, Timestamp} from 'common/time';
-import {TimestampConverter} from 'common/timestamp_converter';
+import {INVALID_TIME_NS, Timestamp} from 'common/time/time';
+import {TimestampConverter} from 'common/time/timestamp_converter';
 import {UserNotifier} from 'common/user_notifier';
 import {Analytics} from 'logging/analytics';
 import {TraceSearchQueryFailed} from 'messaging/user_warnings';
@@ -91,7 +91,7 @@ export class ParserSearch implements Parser<QueryResult> {
   async parse() {
     const tp = await TraceProcessorFactory.getSingleInstance();
     try {
-      this.queryResult = await tp.query(this.query).waitAllRows();
+      this.queryResult = await tp.queryAllRows(this.query);
       if (this.hasTimestamps() && this.queryResult.numRows() > 0) {
         for (const it = this.queryResult.iter({}); it.valid(); it.next()) {
           const ns = it.get('ts') as bigint;

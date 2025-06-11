@@ -15,8 +15,9 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
+import {TimestampConverterUtils} from 'common/time/test_utils';
+import {TimeUtils} from 'common/time/time_utils';
 import {TracePositionUpdate} from 'messaging/winscope_event';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {
   AbstractLogViewerPresenter,
   NotifyLogViewCallbackType,
@@ -39,6 +40,7 @@ export abstract class AbstractLogViewerPresenterTest<UiData extends UiDataLog> {
         presenter = await this.createPresenter((newData) => {
           uiData = newData;
         });
+        await TimeUtils.wait(() => !uiData.isFetchingData);
         if (this.resetTestEnvironment) {
           this.resetTestEnvironment();
         }
@@ -53,6 +55,7 @@ export abstract class AbstractLogViewerPresenterTest<UiData extends UiDataLog> {
             TimestampConverterUtils.makeRealTimestamp(0n),
           ),
         );
+        await TimeUtils.wait(() => !uiData.isFetchingData);
         for (const [index, expectedHeader] of this.expectedHeaders.entries()) {
           const header = uiData.headers[index];
           expect(header.spec).toEqual(expectedHeader.header.spec);
@@ -69,6 +72,7 @@ export abstract class AbstractLogViewerPresenterTest<UiData extends UiDataLog> {
         await assertDefined(presenter).onAppEvent(
           assertDefined(this.getPositionUpdate()),
         );
+        await TimeUtils.wait(() => !uiData.isFetchingData);
         for (const [index, expectedHeader] of this.expectedHeaders.entries()) {
           const header = uiData.headers[index];
           expect(header).toEqual(expectedHeader.header);
@@ -85,8 +89,8 @@ export abstract class AbstractLogViewerPresenterTest<UiData extends UiDataLog> {
     });
 
     function filterEqualityTester(
-      first: any,
-      second: any,
+      first: unknown,
+      second: unknown,
     ): boolean | undefined {
       if (first instanceof LogTextFilter && second instanceof LogTextFilter) {
         return (

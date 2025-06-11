@@ -15,9 +15,9 @@
  */
 
 import {ArrayUtils} from 'common/array_utils';
-import {Timestamp} from 'common/time';
-import {ParserTimestampConverter} from 'common/timestamp_converter';
-import {TIME_UNIT_TO_NANO} from 'common/time_units';
+import {Timestamp} from 'common/time/time';
+import {ParserTimestampConverter} from 'common/time/timestamp_converter';
+import {TIME_UNIT_TO_NANO} from 'common/time/time_units';
 import {UserNotifier} from 'common/user_notifier';
 import {MonotonicScreenRecording} from 'messaging/user_warnings';
 import * as MP4Box from 'mp4box';
@@ -29,7 +29,10 @@ import {TraceFile} from 'trace/trace_file';
 import {ScreenRecordingOffsets, TraceMetadata} from 'trace/trace_metadata';
 import {TraceType} from 'trace/trace_type';
 
-class ParserScreenRecording extends AbstractParser {
+class ParserScreenRecording extends AbstractParser<
+  MediaBasedTraceEntry,
+  bigint
+> {
   private realToBootTimeOffsetNs: bigint | undefined;
 
   constructor(

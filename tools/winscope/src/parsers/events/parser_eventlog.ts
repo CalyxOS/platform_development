@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
+import {byteArrayToString} from 'common/buffer_utils';
 import {StringUtils} from 'common/string_utils';
-import {Timestamp} from 'common/time';
+import {Timestamp} from 'common/time/time';
 import {AbstractParser} from 'parsers/legacy/abstract_parser';
 import {TraceType} from 'trace/trace_type';
 import {PropertyTreeBuilderFromProto} from 'trace/tree_node/property_tree_builder_from_proto';
 import {PropertyTreeNode} from 'trace/tree_node/property_tree_node';
 
-class ParserEventLog extends AbstractParser<PropertyTreeNode> {
+class ParserEventLog extends AbstractParser<PropertyTreeNode, Event> {
   private static readonly MAGIC_NUMBER_STRING = 'EventLog';
   private static readonly MAGIC_NUMBER: number[] = Array.from(
     new TextEncoder().encode(ParserEventLog.MAGIC_NUMBER_STRING),
@@ -66,7 +67,7 @@ class ParserEventLog extends AbstractParser<PropertyTreeNode> {
   }
 
   private decodeByteArray(bytes: Uint8Array): string[] {
-    const allLogsString = new TextDecoder().decode(bytes);
+    const allLogsString = byteArrayToString(bytes);
     const splitLogs = allLogsString.split('\n');
 
     const firstIndexOfEventLogTrace = splitLogs.findIndex((substring) => {

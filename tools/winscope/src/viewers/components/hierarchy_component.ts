@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import {
   Component,
   ElementRef,
   EventEmitter,
+  HostListener,
   Inject,
   Input,
   Output,
 } from '@angular/core';
 import {Color} from 'app/colors';
-import {PersistentStore} from 'common/persistent_store';
+import {InMemoryStorage} from 'common/store/in_memory_storage';
+import {PersistentStore} from 'common/store/persistent_store';
 import {Analytics} from 'logging/analytics';
+import {UserWarning} from 'messaging/user_warning';
 import {TraceType} from 'trace/trace_type';
 import {RectShowState} from 'viewers/common/rect_show_state';
 import {TableProperties} from 'viewers/common/table_properties';
@@ -56,9 +60,9 @@ import {viewerCardInnerStyle} from './styles/viewer_card.styles';
         [traceType]="dependencies[0]"
         [logCallback]="Analytics.Navigation.logHierarchySettingsChanged">
       </user-options>
-      <ng-container *ngIf="tree && tree.getWarnings().length > 0">
+      <ng-container *ngIf="getWarnings().length > 0">
         <span
-          *ngFor="let warning of tree.getWarnings()"
+          *ngFor="let warning of getWarnings()"
           class="mat-body-1 warning"
           [matTooltip]="warning.getMessage()"
           [matTooltipDisabled]="disableTooltip(warningEl)">
@@ -70,7 +74,10 @@ import {viewerCardInnerStyle} from './styles/viewer_card.styles';
         *ngIf="tableProperties"
         class="properties-table"
         [properties]="tableProperties"></properties-table>
-      <div *ngIf="pinnedItems.length > 0" class="pinned-items">
+      <div
+        *ngIf="pinnedItems.length > 0"
+        class="pinned-items"
+        [style.padding]="getPinnedItemsPadding()">
         <tree-node
           *ngFor="let pinnedItem of pinnedItems"
           class="node full-opacity"
@@ -86,32 +93,20 @@ import {viewerCardInnerStyle} from './styles/viewer_card.styles';
       </div>
     </div>
     <mat-divider></mat-divider>
-    <span class="mat-body-1 placeholder-text" *ngIf="showPlaceholderText()"> {{ placeholderText }} </span>
+    <span class="mat-body-1 placeholder-text" *ngIf="showPlaceholderText()"> {{ placeholderText + ' Try changing timeline position.' }} </span>
     <div class="hierarchy-content tree-wrapper">
-      <tree-view
-        *ngIf="tree"
-        [isFlattened]="isFlattened()"
-        [node]="tree"
-        [useStoredExpandedState]="true"
-        [itemsClickable]="true"
-        [highlightedItem]="highlightedItem"
-        [pinnedItems]="pinnedItems"
-        [rectIdToShowState]="rectIdToShowState"
-        (highlightedChange)="onHighlightedItemChange($event)"
-        (pinnedItemChange)="onPinnedItemChange($event)"
-        (selectedTreeChange)="onSelectedTreeChange($event)"></tree-view>
-
-      <div class="subtrees">
+      <div class="trees">
         <tree-view
-          *ngFor="let subtree of subtrees; trackBy: trackById"
-          class="subtree"
-          [node]="subtree"
+          *ngFor="let tree of trees; trackBy: trackById"
+          class="tree"
+          [node]="tree"
           [isFlattened]="isFlattened()"
           [useStoredExpandedState]="true"
           [highlightedItem]="highlightedItem"
           [pinnedItems]="pinnedItems"
           [itemsClickable]="true"
           [rectIdToShowState]="rectIdToShowState"
+          [store]="treeStorage"
           (highlightedChange)="onHighlightedItemChange($event)"
           (pinnedItemChange)="onPinnedItemChange($event)"
           (selectedTreeChange)="onSelectedTreeChange($event)"></tree-view>
@@ -144,25 +139,6 @@ import {viewerCardInnerStyle} from './styles/viewer_card.styles';
       tree-view {
         overflow: auto;
       }
-
-      .warning {
-        display: flex;
-        align-items: center;
-        padding: 2px 12px;
-        background-color: var(--warning-background-color);
-      }
-      .warning-message {
-        padding-inline-start: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        width: 100%;
-      }
-      .warning-icon {
-        font-size: 18px;
-        min-width: 18px;
-        height: 18px;
-      }
     `,
     nodeStyles,
     viewerCardInnerStyle,
@@ -172,9 +148,9 @@ export class HierarchyComponent {
   isHighlighted = UiTreeUtils.isHighlighted;
   ViewerEvents = ViewerEvents;
   Analytics = Analytics;
+  treeStorage = new InMemoryStorage();
 
-  @Input() tree: UiHierarchyTreeNode | undefined;
-  @Input() subtrees: UiHierarchyTreeNode[] = [];
+  @Input() trees: UiHierarchyTreeNode[] = [];
   @Input() tableProperties: TableProperties | undefined;
   @Input() dependencies: TraceType[] = [];
   @Input() highlightedItem = '';
@@ -187,7 +163,9 @@ export class HierarchyComponent {
 
   @Output() collapseButtonClicked = new EventEmitter();
 
-  constructor(@Inject(ElementRef) private elementRef: ElementRef) {}
+  constructor(
+    @Inject(ElementRef) private elementRef: ElementRef<HTMLElement>,
+  ) {}
 
   trackById(index: number, child: UiHierarchyTreeNode): string {
     return child.id;
@@ -198,7 +176,11 @@ export class HierarchyComponent {
   }
 
   showPlaceholderText(): boolean {
-    return !this.tree && (this.subtrees?.length ?? 0) === 0;
+    return this.trees.length === 0 && !!this.placeholderText;
+  }
+
+  getWarnings(): UserWarning[] {
+    return this.trees.flatMap((tree) => tree.getWarnings());
   }
 
   onPinnedNodeClick(event: MouseEvent, pinnedItem: UiHierarchyTreeNode) {
@@ -235,5 +217,33 @@ export class HierarchyComponent {
 
   disableTooltip(el: HTMLElement) {
     return el.scrollWidth === el.clientWidth;
+  }
+
+  getPinnedItemsPadding() {
+    const addGutter = (this.rectIdToShowState?.size ?? 0) > 0;
+    return `0px 10.5px 0px ${addGutter ? 22.5 : 10.5}px`;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  async handleKeyboardEvent(event: KeyboardEvent) {
+    const domRect = this.elementRef.nativeElement.getBoundingClientRect();
+    const componentVisible = domRect.height > 0 && domRect.width > 0;
+    if (
+      componentVisible &&
+      (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+    ) {
+      event.preventDefault();
+      const details = {bubbles: true, detail: this.treeStorage};
+      if (event.key === 'ArrowDown') {
+        const arrowEvent = new CustomEvent(
+          ViewerEvents.ArrowDownPress,
+          details,
+        );
+        this.elementRef.nativeElement.dispatchEvent(arrowEvent);
+      } else {
+        const arrowEvent = new CustomEvent(ViewerEvents.ArrowUpPress, details);
+        this.elementRef.nativeElement.dispatchEvent(arrowEvent);
+      }
+    }
   }
 }

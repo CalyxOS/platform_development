@@ -16,7 +16,8 @@
 
 import {assertDefined} from 'common/assert_utils';
 import {IDENTITY_MATRIX} from 'common/geometry/transform_matrix';
-import {InMemoryStorage} from 'common/in_memory_storage';
+import {InMemoryStorage} from 'common/store/in_memory_storage';
+import {TimestampConverterUtils} from 'common/time/test_utils';
 import {
   DarkModeToggled,
   FilterPresetApplyRequest,
@@ -25,7 +26,6 @@ import {
 } from 'messaging/winscope_event';
 import {HierarchyTreeBuilder} from 'test/unit/hierarchy_tree_builder';
 import {MockPresenter} from 'test/unit/mock_hierarchy_viewer_presenter';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {TraceBuilder} from 'test/unit/trace_builder';
 import {TreeNodeUtils} from 'test/unit/tree_node_utils';
 import {UnitTestUtils} from 'test/unit/utils';
@@ -177,7 +177,7 @@ describe('AbstractHierarchyViewerPresenter', () => {
     expect(uiData.displays?.length).toBeGreaterThan(0);
   });
 
-  it('adds events listeners', () => {
+  it('adds event listeners', () => {
     const element = document.createElement('div');
     presenter.addEventListeners(element);
 
@@ -258,6 +258,17 @@ describe('AbstractHierarchyViewerPresenter', () => {
       }),
     );
     expect(spy).toHaveBeenCalledWith({});
+
+    spy = spyOn(presenter, 'onArrowPress');
+    element.dispatchEvent(
+      new CustomEvent(ViewerEvents.ArrowDownPress, {detail: storage}),
+    );
+    expect(spy).toHaveBeenCalledWith(storage, false);
+
+    element.dispatchEvent(
+      new CustomEvent(ViewerEvents.ArrowUpPress, {detail: storage}),
+    );
+    expect(spy).toHaveBeenCalledWith(storage, true);
   });
 
   it('is robust to empty trace', async () => {
@@ -490,6 +501,16 @@ describe('AbstractHierarchyViewerPresenter', () => {
     userOptions['ignoreRectShowState'].enabled = true;
     presenter.onRectsUserOptionsChange(userOptions);
     checkRectUiData(uiData, 2, 3, 1);
+  });
+
+  it('handles arrow up/down press', async () => {
+    await presenter.onAppEvent(positionUpdate);
+    await presenter.onArrowPress(storage, false);
+    expect(uiData.propertiesTree?.id).toContain('Test Trace entry');
+    await presenter.onArrowPress(storage, false);
+    expect(uiData.propertiesTree?.id).toContain('1 p1');
+    await presenter.onArrowPress(storage, true);
+    expect(uiData.propertiesTree?.id).toContain('Test Trace entry');
   });
 
   function pinNode(node: UiHierarchyTreeNode) {

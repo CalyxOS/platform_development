@@ -15,9 +15,9 @@
  */
 
 import {assertTrue} from 'common/assert_utils';
-import {ParserTimestampConverter} from 'common/timestamp_converter';
+import {ParserTimestampConverter} from 'common/time/timestamp_converter';
 import {TraceFile} from 'trace/trace_file';
-import {WasmEngineProxy} from 'trace_processor/wasm_engine_proxy';
+import {TraceProcessor} from 'trace_processor/trace_processor';
 import {ParserViewCaptureWindow} from './parser_view_capture_window';
 
 interface WindowAndPackage {
@@ -27,7 +27,7 @@ interface WindowAndPackage {
 
 export class ParserViewCapture {
   private readonly traceFile: TraceFile;
-  private readonly traceProcessor: WasmEngineProxy;
+  private readonly traceProcessor: TraceProcessor;
   private readonly timestampConverter: ParserTimestampConverter;
 
   private windowParsers: ParserViewCaptureWindow[] = [];
@@ -36,7 +36,7 @@ export class ParserViewCapture {
 
   constructor(
     traceFile: TraceFile,
-    traceProcessor: WasmEngineProxy,
+    traceProcessor: TraceProcessor,
     timestampConverter: ParserTimestampConverter,
   ) {
     this.traceFile = traceFile;
@@ -52,7 +52,7 @@ export class ParserViewCapture {
     const windowAndPackageNames = await this.queryWindowAndPackageNames();
     assertTrue(
       windowAndPackageNames.length > 0,
-      () => 'Perfetto trace has no ViewCapture windows',
+      () => 'Perfetto trace has no ViewCapture window entries',
     );
 
     this.windowParsers = windowAndPackageNames.map(
@@ -86,7 +86,7 @@ export class ParserViewCapture {
         ORDER BY package_and_window;
     `;
 
-    const result = await this.traceProcessor.query(sql).waitAllRows();
+    const result = await this.traceProcessor.queryAllRows(sql);
 
     const names: WindowAndPackage[] = [];
     for (const it = result.iter({}); it.valid(); it.next()) {

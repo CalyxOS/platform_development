@@ -21,16 +21,21 @@ import android.companion.virtual.VirtualDevice;
 import android.companion.virtual.VirtualDeviceManager;
 import android.content.Context;
 import android.hardware.Sensor;
+import android.hardware.SensorAdditionalInfo;
 import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
+import android.hardware.SensorEventCallback;
 import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
 import androidx.core.os.BuildCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.util.List;
 import java.util.Objects;
@@ -38,7 +43,7 @@ import java.util.Objects;
 /**
  * A minimal activity switching between sensor data from the default device and the virtual devices.
  */
-public final class SensorDemoActivity extends AppCompatActivity implements SensorEventListener {
+public final class SensorDemoActivity extends AppCompatActivity {
 
     private static final String DEVICE_NAME_UNKNOWN = "Unknown";
     private static final String DEVICE_NAME_DEFAULT = "Default - " + Build.MODEL;
@@ -46,7 +51,27 @@ public final class SensorDemoActivity extends AppCompatActivity implements Senso
     private VirtualDeviceManager mVirtualDeviceManager;
     private SensorManager mSensorManager;
     private View mBeam;
+    private TextView mTemperature;
     private Context mDeviceContext;
+
+    private final SensorEventCallback mSensorEventCallback = new SensorEventCallback() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            float x = event.values[0];
+            float z = event.values[2];
+            float magnitude = (float) Math.sqrt(x * x + z * z);
+            float angle = (float) (Math.signum(x) * Math.acos(z / magnitude));
+            float angleDegrees = (float) Math.toDegrees(angle);
+            mBeam.setRotation(angleDegrees);
+        }
+
+        @Override
+        public void onSensorAdditionalInfo(SensorAdditionalInfo info) {
+            if (info.type == SensorAdditionalInfo.TYPE_INTERNAL_TEMPERATURE) {
+                mTemperature.setText(Float.toString(info.floatValues[0]));
+            }
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -54,7 +79,17 @@ public final class SensorDemoActivity extends AppCompatActivity implements Senso
 
         setContentView(R.layout.sensor_demo_activity);
 
+        View deviceChangeView = (View) requireViewById(R.id.current_device).getParent();
+        ViewCompat.setOnApplyWindowInsetsListener(deviceChangeView, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) v.getLayoutParams();
+            lp.topMargin = insets.top;
+            v.setLayoutParams(lp);
+            return WindowInsetsCompat.CONSUMED;
+        });
+
         mBeam = requireViewById(R.id.beam);
+        mTemperature = requireViewById(R.id.temperature);
 
         mVirtualDeviceManager = getSystemService(VirtualDeviceManager.class);
         mSensorManager = getSystemService(SensorManager.class);
@@ -69,7 +104,7 @@ public final class SensorDemoActivity extends AppCompatActivity implements Senso
     public void onDestroy() {
         super.onDestroy();
         mDeviceContext.unregisterDeviceIdChangeListener(this::changeSensorDevice);
-        mSensorManager.unregisterListener(this);
+        mSensorManager.unregisterListener(mSensorEventCallback);
     }
 
     private void updateCurrentDeviceTextView(Context context) {
@@ -115,7 +150,8 @@ public final class SensorDemoActivity extends AppCompatActivity implements Senso
 
     private void changeSensorDevice(int deviceId) {
         mDeviceContext.unregisterDeviceIdChangeListener(this::changeSensorDevice);
-        mSensorManager.unregisterListener(this);
+        mSensorManager.unregisterListener(mSensorEventCallback);
+        mTemperature.setText("");
 
         mDeviceContext = createDeviceContext(deviceId);
 
@@ -125,20 +161,8 @@ public final class SensorDemoActivity extends AppCompatActivity implements Senso
         Objects.requireNonNull(mSensorManager);
         Sensor sensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (sensor != null) {
-            mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI);
+            mSensorManager.registerListener(
+                    mSensorEventCallback, sensor, SensorManager.SENSOR_DELAY_UI);
         }
     }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        float x = event.values[0];
-        float z = event.values[2];
-        float magnitude = (float) Math.sqrt(x * x + z * z);
-        float angle = (float) (Math.signum(x) * Math.acos(z / magnitude));
-        float angleDegrees = (float) Math.toDegrees(angle);
-        mBeam.setRotation(angleDegrees);
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
 }

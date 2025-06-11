@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 import {assertDefined} from 'common/assert_utils';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
+import {
+  TimestampConverterUtils,
+  timestampEqualityTester,
+} from 'common/time/test_utils';
 import {TraceBuilder} from 'test/unit/trace_builder';
 import {UnitTestUtils} from 'test/unit/utils';
 import {CoarseVersion} from 'trace/coarse_version';
@@ -27,7 +30,7 @@ describe('Perfetto ParserMotionEvent', () => {
   let parser: Parser<PropertyTreeNode>;
 
   beforeAll(async () => {
-    jasmine.addCustomEqualityTester(UnitTestUtils.timestampEqualityTester);
+    jasmine.addCustomEqualityTester(timestampEqualityTester);
     parser = await UnitTestUtils.getPerfettoParser(
       TraceType.INPUT_MOTION_EVENT,
       'traces/perfetto/input-events.perfetto-trace',
@@ -77,7 +80,7 @@ describe('Perfetto ParserMotionEvent', () => {
       'SOURCE_TOUCHSCREEN',
     );
     expect(motionEvent?.getChildByName('flags')?.formattedValue()).toEqual(
-      '128',
+      'UNKNOWN (0x80)',
     );
     expect(motionEvent?.getChildByName('deviceId')?.getValue()).toEqual(4);
     expect(motionEvent?.getChildByName('displayId')?.getValue()).toEqual(0);
@@ -91,7 +94,7 @@ describe('Perfetto ParserMotionEvent', () => {
       null,
     );
     expect(motionEvent?.getChildByName('metaState')?.formattedValue()).toEqual(
-      '0',
+      '0x0',
     );
 
     const firstPointer = motionEvent

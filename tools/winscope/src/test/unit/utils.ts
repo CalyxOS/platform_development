@@ -15,10 +15,10 @@
  */
 
 import {ComponentFixture} from '@angular/core/testing';
-import {assertDefined} from 'common/assert_utils';
-import {Timestamp} from 'common/time';
-import {TimestampConverter} from 'common/timestamp_converter';
-import {UrlUtils} from 'common/url_utils';
+import {assertDefined, assertTrue} from 'common/assert_utils';
+import {TimestampConverterUtils} from 'common/time/test_utils';
+import {Timestamp} from 'common/time/time';
+import {TimestampConverter} from 'common/time/timestamp_converter';
 import {ParserFactory as LegacyParserFactory} from 'parsers/legacy/parser_factory';
 import {ParserFactory as PerfettoParserFactory} from 'parsers/perfetto/parser_factory';
 import {TracesParserFactory} from 'parsers/traces/traces_parser_factory';
@@ -29,24 +29,17 @@ import {TraceFile} from 'trace/trace_file';
 import {TraceMetadata} from 'trace/trace_metadata';
 import {TraceEntryTypeMap, TraceType} from 'trace/trace_type';
 import {HierarchyTreeNode} from 'trace/tree_node/hierarchy_tree_node';
-import {QueryResult, Row, RowIterator} from 'trace_processor/query_result';
+import {
+  ColumnType,
+  QueryResult,
+  Row,
+  RowIterator,
+} from 'trace_processor/query_result';
 import {TraceProcessorFactory} from 'trace_processor/trace_processor_factory';
-import {TimestampConverterUtils} from './timestamp_converter_utils';
+import {getFixtureFile} from './fixture_utils';
 import {TraceBuilder} from './trace_builder';
 
 class UnitTestUtils {
-  static async getFixtureFile(
-    srcFilename: string,
-    dstFilename: string = srcFilename,
-  ): Promise<File> {
-    const url = UrlUtils.getRootUrl() + 'base/src/test/fixtures/' + srcFilename;
-    const response = await fetch(url);
-    expect(response.ok).toBeTrue();
-    const blob = await response.blob();
-    const file = new File([blob], dstFilename);
-    return file;
-  }
-
   static async getTrace<T extends TraceType>(
     type: T,
     filename: string,
@@ -97,10 +90,7 @@ class UnitTestUtils {
     initializeRealToElapsedTimeOffsetNs = true,
     metadata: TraceMetadata = {},
   ): Promise<Array<Parser<object>>> {
-    const file = new TraceFile(
-      await UnitTestUtils.getFixtureFile(filename),
-      undefined,
-    );
+    const file = new TraceFile(await getFixtureFile(filename), undefined);
     const fileAndParsers = await new LegacyParserFactory().createParsers(
       [file],
       converter,
@@ -153,7 +143,7 @@ class UnitTestUtils {
     fixturePath: string,
     withUTCOffset = false,
   ): Promise<Array<Parser<object>>> {
-    const file = await UnitTestUtils.getFixtureFile(fixturePath);
+    const file = await getFixtureFile(fixturePath);
     const traceFile = new TraceFile(file);
     const converter = UnitTestUtils.getTimestampConverter(withUTCOffset);
     const parsers = await new PerfettoParserFactory().createParsers(
@@ -218,11 +208,11 @@ class UnitTestUtils {
       traces,
       converter,
     );
-    expect(tracesParsers.length)
-      .withContext(
+    assertTrue(
+      tracesParsers.length === 1,
+      () =>
         `Should have been able to create a traces parser for [${filenames.join()}]`,
-      )
-      .toEqual(1);
+    );
     return tracesParsers[0];
   }
 
@@ -311,13 +301,6 @@ class UnitTestUtils {
     return parser.getEntry(index);
   }
 
-  static timestampEqualityTester(first: any, second: any): boolean | undefined {
-    if (first instanceof Timestamp && second instanceof Timestamp) {
-      return UnitTestUtils.testTimestamps(first, second);
-    }
-    return undefined;
-  }
-
   static checkSectionCollapseAndExpand<T>(
     htmlElement: HTMLElement,
     fixture: ComponentFixture<T>,
@@ -325,9 +308,16 @@ class UnitTestUtils {
     sectionTitle: string,
   ) {
     const section = assertDefined(htmlElement.querySelector(selector));
+    expect(
+      assertDefined(
+        section.querySelector<HTMLElement>(
+          'collapsible-section-title .mat-title',
+        ),
+      ).textContent,
+    ).toEqual(sectionTitle);
     const collapseButton = assertDefined(
-      section.querySelector('collapsible-section-title button'),
-    ) as HTMLElement;
+      section.querySelector<HTMLElement>('collapsible-section-title button'),
+    );
     collapseButton.click();
     fixture.detectChanges();
     expect(section.classList).toContain('collapsed');
@@ -337,7 +327,9 @@ class UnitTestUtils {
     const collapsedSection = assertDefined(
       collapsedSections.querySelector('.collapsed-section'),
     ) as HTMLElement;
-    expect(collapsedSection.textContent).toContain(sectionTitle);
+    expect(collapsedSection.textContent?.trim()).toEqual(
+      sectionTitle + '  arrow_right',
+    );
     collapsedSection.click();
     fixture.detectChanges();
     UnitTestUtils.checkNoCollapsedSectionButtons(htmlElement);
@@ -366,6 +358,7 @@ class UnitTestUtils {
 
   static makeSearchTraceSpies(
     ts?: Timestamp,
+    value?: ColumnType,
   ): [jasmine.SpyObj<QueryResult>, jasmine.SpyObj<RowIterator<Row>>] {
     const spyQueryResult = jasmine.createSpyObj<QueryResult>('result', [
       'numRows',
@@ -373,19 +366,24 @@ class UnitTestUtils {
       'iter',
     ]);
     spyQueryResult.numRows.and.returnValue(1);
-    spyQueryResult.columns.and.returnValue(
-      ts === undefined ? ['property'] : ['ts', 'property'],
-    );
+    const columns: string[] = [];
+    if (ts !== undefined) columns.push('ts');
+    columns.push('property');
+    if (value !== undefined) columns.push('value');
+    spyQueryResult.columns.and.returnValue(columns);
 
     const spyIter = jasmine.createSpyObj<RowIterator<Row>>('iter', [
       'valid',
       'next',
       'get',
     ]);
-    if (ts) {
+    if (ts !== undefined) {
       spyIter.get.withArgs('ts').and.returnValue(ts.getValueNs());
     }
-    spyIter.get.withArgs('property').and.returnValue('test_value');
+    spyIter.get.withArgs('property').and.returnValue('test_property');
+    if (value !== undefined) {
+      spyIter.get.withArgs('value').and.returnValue(value);
+    }
     spyIter.valid.and.returnValue(true);
     spyIter.next.and.callFake(() =>
       assertDefined(spyIter).valid.and.returnValue(false),
@@ -397,18 +395,45 @@ class UnitTestUtils {
 
   static async runQueryAndGetResult(query: string): Promise<QueryResult> {
     const tp = await TraceProcessorFactory.getSingleInstance();
-    return tp.query(query).waitAllRows();
+    return tp.queryAllRows(query);
   }
 
-  private static testTimestamps(
-    timestamp: Timestamp,
-    expectedTimestamp: Timestamp,
-  ): boolean {
-    if (timestamp.format() !== expectedTimestamp.format()) return false;
-    if (timestamp.getValueNs() !== expectedTimestamp.getValueNs()) {
-      return false;
+  static async checkTooltips<T>(
+    elements: Element[],
+    expTooltips: Array<string | undefined>,
+    fixture: ComponentFixture<T>,
+  ) {
+    for (const [index, el] of elements.entries()) {
+      el.dispatchEvent(new Event('mouseenter'));
+      fixture.detectChanges();
+      const panel = document.querySelector<HTMLElement>('.mat-tooltip-panel');
+      if (expTooltips[index] !== undefined) {
+        expect(panel?.textContent).toEqual(expTooltips[index]);
+      } else {
+        expect(panel).toBeNull();
+      }
+      el.dispatchEvent(new Event('mouseleave'));
+      fixture.detectChanges();
+      await fixture.whenStable();
     }
-    return true;
+  }
+
+  static makeFakeWebSocket(): jasmine.SpyObj<WebSocket> {
+    const socket = jasmine.createSpyObj<WebSocket>(
+      'WebSocket',
+      ['onmessage', 'onclose', 'send', 'close', 'onerror'],
+      {'readyState': WebSocket.OPEN, binaryType: 'arraybuffer'},
+    );
+    socket.close.and.callFake(() => {
+      socket.onclose!(new CloseEvent(''));
+    });
+    return socket;
+  }
+
+  static makeFakeWebSocketMessage(
+    data: Blob | ArrayBuffer | number | string,
+  ): MessageEvent {
+    return jasmine.createSpyObj<MessageEvent>([], {'data': data});
   }
 }
 

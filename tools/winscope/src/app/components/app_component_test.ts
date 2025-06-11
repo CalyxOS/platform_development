@@ -41,12 +41,15 @@ import {MatProgressBarModule} from '@angular/material/progress-bar';
 import {MatSelectModule} from '@angular/material/select';
 import {MatSliderModule} from '@angular/material/slider';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
+import {MatTabsModule} from '@angular/material/tabs';
 import {MatToolbarModule} from '@angular/material/toolbar';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {Title} from '@angular/platform-browser';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {assertDefined} from 'common/assert_utils';
+import {Download} from 'common/download';
 import {FileUtils} from 'common/file_utils';
+import {TimestampConverterUtils} from 'common/time/test_utils';
 import {UserNotifier} from 'common/user_notifier';
 import {
   FailedToInitializeTimelineData,
@@ -57,11 +60,9 @@ import {
   ViewersLoaded,
   ViewersUnloaded,
 } from 'messaging/winscope_event';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {TracesBuilder} from 'test/unit/traces_builder';
 import {waitToBeCalled} from 'test/utils';
 import {ViewerSurfaceFlingerComponent} from 'viewers/viewer_surface_flinger/viewer_surface_flinger_component';
-import {AdbProxyComponent} from './adb_proxy_component';
 import {AppComponent} from './app_component';
 import {
   MatDrawer,
@@ -76,7 +77,8 @@ import {TimelineComponent} from './timeline/timeline_component';
 import {TraceConfigComponent} from './trace_config_component';
 import {TraceViewComponent} from './trace_view_component';
 import {UploadTracesComponent} from './upload_traces_component';
-import {WebAdbComponent} from './web_adb_component';
+import {WdpSetupComponent} from './wdp_setup_component';
+import {WinscopeProxySetupComponent} from './winscope_proxy_setup_component';
 
 describe('AppComponent', () => {
   let fixture: ComponentFixture<AppComponent>;
@@ -109,9 +111,11 @@ describe('AppComponent', () => {
         MatListModule,
         MatProgressBarModule,
         OverlayModule,
+        MatTabsModule,
       ],
       declarations: [
-        AdbProxyComponent,
+        WinscopeProxySetupComponent,
+        WdpSetupComponent,
         AppComponent,
         CollectTracesComponent,
         MatDrawer,
@@ -123,7 +127,6 @@ describe('AppComponent', () => {
         TraceViewComponent,
         UploadTracesComponent,
         ViewerSurfaceFlingerComponent,
-        WebAdbComponent,
         ShortcutsComponent,
         SnackBarComponent,
       ],
@@ -142,7 +145,7 @@ describe('AppComponent', () => {
         Validators.pattern(FileUtils.DOWNLOAD_FILENAME_REGEX),
       ]),
     );
-    downloadTracesSpy = spyOn(component, 'downloadTraces');
+    downloadTracesSpy = spyOn(Download, 'fromUrl');
     fixture.detectChanges();
   });
 
@@ -246,7 +249,7 @@ describe('AppComponent', () => {
     updateFilenameInputAndDownloadTraces('Winscope2', true);
     await waitToBeCalled(downloadTracesSpy);
     expect(downloadTracesSpy).toHaveBeenCalledOnceWith(
-      jasmine.any(Blob),
+      jasmine.any(String),
       'Winscope2.zip',
     );
 
@@ -257,7 +260,7 @@ describe('AppComponent', () => {
     updateFilenameInputAndDownloadTraces('win_scope', true);
     await waitToBeCalled(downloadTracesSpy);
     expect(downloadTracesSpy).toHaveBeenCalledOnceWith(
-      jasmine.any(Blob),
+      jasmine.any(String),
       'win_scope.zip',
     );
   });
@@ -298,7 +301,7 @@ describe('AppComponent', () => {
     updateFilenameInputAndDownloadTraces('Winscope2', true);
     await waitToBeCalled(downloadTracesSpy);
     expect(downloadTracesSpy).toHaveBeenCalledOnceWith(
-      jasmine.any(Blob),
+      jasmine.any(String),
       'Winscope2.zip',
     );
     downloadTracesSpy.calls.reset();
@@ -310,7 +313,7 @@ describe('AppComponent', () => {
     updateFilenameInputAndDownloadTraces('win.scope', true);
     await waitToBeCalled(downloadTracesSpy);
     expect(downloadTracesSpy).toHaveBeenCalledOnceWith(
-      jasmine.any(Blob),
+      jasmine.any(String),
       'win.scope.zip',
     );
   });

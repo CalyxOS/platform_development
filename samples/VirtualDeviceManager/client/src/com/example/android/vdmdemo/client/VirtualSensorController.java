@@ -18,8 +18,9 @@ package com.example.android.vdmdemo.client;
 
 import android.content.Context;
 import android.hardware.Sensor;
+import android.hardware.SensorAdditionalInfo;
 import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
+import android.hardware.SensorEventCallback;
 import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -37,6 +38,7 @@ import dagger.hilt.android.scopes.ActivityScoped;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.inject.Inject;
@@ -50,22 +52,30 @@ final class VirtualSensorController implements AutoCloseable {
     private final HandlerThread mListenerThread;
     private final Handler mHandler;
 
-    private final SensorEventListener mSensorEventListener =
-            new SensorEventListener() {
-                @Override
-                public void onSensorChanged(SensorEvent event) {
-                    mRemoteIo.sendMessage(
-                            RemoteEvent.newBuilder()
-                                    .setSensorEvent(
-                                            RemoteSensorEvent.newBuilder()
-                                                    .setSensorType(event.sensor.getType())
-                                                    .addAllValues(Floats.asList(event.values)))
-                                    .build());
-                }
+    private final SensorEventCallback mSensorEventCallback = new SensorEventCallback() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            mRemoteIo.sendMessage(RemoteEvent.newBuilder()
+                    .setSensorEvent(RemoteSensorEvent.newBuilder()
+                            .setSensorType(event.sensor.getType())
+                            .setAdditionalInfoType(-1)
+                            .addAllValues(Floats.asList(event.values)))
+                    .build());
+        }
 
-                @Override
-                public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-            };
+        @Override
+        public void onSensorAdditionalInfo(SensorAdditionalInfo info) {
+            if (info.type != SensorAdditionalInfo.TYPE_INTERNAL_TEMPERATURE) {
+                return;
+            }
+            mRemoteIo.sendMessage(RemoteEvent.newBuilder()
+                    .setSensorEvent(RemoteSensorEvent.newBuilder()
+                            .setSensorType(info.sensor.getType())
+                            .setAdditionalInfoType(info.type)
+                            .addAllValues(List.of(info.floatValues[0])))
+                    .build());
+        }
+    };
 
     @Inject
     VirtualSensorController(@ApplicationContext Context context, RemoteIo remoteIo) {
@@ -81,7 +91,7 @@ final class VirtualSensorController implements AutoCloseable {
 
     @Override
     public void close() {
-        mSensorManager.unregisterListener(mSensorEventListener);
+        mSensorManager.unregisterListener(mSensorEventCallback);
         mListenerThread.quitSafely();
         mRemoteIo.removeMessageConsumer(mRemoteEventConsumer);
     }
@@ -93,7 +103,7 @@ final class VirtualSensorController implements AutoCloseable {
                         mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY))
                 .filter(Objects::nonNull)
                 .map(VirtualSensorController::createSensorCapabilitiesFromSensor)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private static SensorCapabilities createSensorCapabilitiesFromSensor(Sensor sensor) {
@@ -108,6 +118,7 @@ final class VirtualSensorController implements AutoCloseable {
                 .setMaxDelayUs(sensor.getMaxDelay())
                 .setIsWakeUpSensor(sensor.isWakeUpSensor())
                 .setReportingMode(sensor.getReportingMode())
+                .setIsAdditionalInfoSupported(sensor.isAdditionalInfoSupported())
                 .build();
     }
 
@@ -122,13 +133,13 @@ final class VirtualSensorController implements AutoCloseable {
         }
         if (config.getEnabled()) {
             mSensorManager.registerListener(
-                    mSensorEventListener,
+                    mSensorEventCallback,
                     sensor,
                     config.getSamplingPeriodUs(),
                     config.getBatchReportingLatencyUs(),
                     mHandler);
         } else {
-            mSensorManager.unregisterListener(mSensorEventListener, sensor);
+            mSensorManager.unregisterListener(mSensorEventCallback, sensor);
         }
     }
 }

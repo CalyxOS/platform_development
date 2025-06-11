@@ -23,8 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
+import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
-import com.android.compose.animation.scene.SceneScope
 import com.android.compose.animation.scene.ValueKey
 import com.android.compose.animation.scene.animateElementColorAsState
 
@@ -39,8 +39,8 @@ object Clock {
 }
 
 @Composable
-fun SceneScope.Clock(color: Color, modifier: Modifier = Modifier) {
-    Element(Clock.Elements.Clock, modifier) {
+fun ContentScope.Clock(color: Color, modifier: Modifier = Modifier) {
+    ElementWithValues(Clock.Elements.Clock, modifier) {
         val color by animateElementColorAsState(color, Clock.Values.TextColor)
 
         content {

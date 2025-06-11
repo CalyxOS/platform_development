@@ -35,9 +35,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.android.compose.animation.scene.Back
+import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.SceneKey
-import com.android.compose.animation.scene.SceneScope
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.compose.animation.scene.ValueKey
@@ -60,7 +60,7 @@ object Camera {
 }
 
 @Composable
-fun SceneScope.Camera(modifier: Modifier = Modifier) {
+fun ContentScope.Camera(modifier: Modifier = Modifier) {
     Box(modifier) {
         Box(Modifier.element(Camera.Elements.Background).fillMaxSize().background(Color.Black))
         CameraButton(
@@ -73,13 +73,13 @@ fun SceneScope.Camera(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SceneScope.CameraButton(
+fun ContentScope.CameraButton(
     backgroundColor: Color,
     iconColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Element(Camera.Elements.Button, modifier) {
+    ElementWithValues(Camera.Elements.Button, modifier) {
         val backgroundColor by
             animateElementColorAsState(backgroundColor, Camera.Values.ButtonColor)
         val iconColor by

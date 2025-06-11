@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import {TimeRange} from 'common/time';
-import {TimeDuration} from 'common/time_duration';
+import {TimeRange} from 'common/time/time';
+import {TimeDuration} from 'common/time/time_duration';
 import {TRACE_INFO} from 'trace/trace_info';
 import {TraceType} from 'trace/trace_type';
 import {UserWarning} from './user_warning';
@@ -322,5 +322,21 @@ export class TraceSearchQueryFailed extends UserWarning {
 
   getMessage(): string {
     return `Search query failed: ${this.errorMessage}`;
+  }
+}
+
+export class PerfettoPacketLoss extends UserWarning {
+  constructor(private descriptor: string, private totalPacketLoss: number) {
+    super();
+  }
+
+  getDescriptor(): string {
+    return 'perfetto packet loss';
+  }
+
+  getMessage(): string {
+    return `${this.descriptor}: ${this.totalPacketLoss} packet${
+      this.totalPacketLoss > 1 ? 's' : ''
+    } lost during tracing - data may be incomplete`;
   }
 }

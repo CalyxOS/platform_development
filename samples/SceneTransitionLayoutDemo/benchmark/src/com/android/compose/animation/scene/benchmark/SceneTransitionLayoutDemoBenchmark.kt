@@ -24,6 +24,7 @@ import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
 import org.junit.Rule
 import org.junit.Test
@@ -59,7 +60,7 @@ class SceneTransitionLayoutDemoBenchmark {
     fun lockscreenToShade() {
         benchmarkSwipeFromScene(
             fromScene = StlDemoConstants.LOCKSCREEN_SCENE,
-            toScene = StlDemoConstants.SHADE_SCENE,
+            toContent = StlDemoConstants.SHADE_SCENE,
             direction = Direction.DOWN,
         )
     }
@@ -68,21 +69,51 @@ class SceneTransitionLayoutDemoBenchmark {
     fun shadeToQuickSettings() {
         benchmarkSwipeFromScene(
             fromScene = StlDemoConstants.SHADE_SCENE,
-            toScene = StlDemoConstants.QUICK_SETTINGS_SCENE,
+            toContent = StlDemoConstants.QUICK_SETTINGS_SCENE,
             direction = Direction.DOWN,
         )
     }
 
-    private fun benchmarkSwipeFromScene(fromScene: String, toScene: String, direction: Direction) {
+    @Test
+    fun lockscreenToNotificationsOverlay() {
+        benchmarkSwipeFromScene(
+            fromScene = StlDemoConstants.LOCKSCREEN_SCENE,
+            toContent = StlDemoConstants.NOTIFICATIONS_OVERLAY,
+            direction = Direction.DOWN,
+            toContentIsOverlay = true,
+            swipeOn = StlDemoConstants.STL_START_HALF_SELECTOR,
+        )
+    }
+
+    @Test
+    fun lockscreenToQuickSettingsOverlay() {
+        benchmarkSwipeFromScene(
+            fromScene = StlDemoConstants.LOCKSCREEN_SCENE,
+            toContent = StlDemoConstants.QUICK_SETTINGS_OVERLAY,
+            direction = Direction.DOWN,
+            toContentIsOverlay = true,
+            swipeOn = StlDemoConstants.STL_END_HALF_SELECTOR,
+        )
+    }
+
+    private fun benchmarkSwipeFromScene(
+        fromScene: String,
+        toContent: String,
+        direction: Direction,
+        toContentIsOverlay: Boolean = false,
+        swipeOn: BySelector? = null,
+    ) {
         benchmarkRule.measureRepeated(
             packageName = StlDemoConstants.PACKAGE,
             metrics = listOf(FrameTimingMetric()),
             iterations = ITERATIONS,
             startupMode = StartupMode.WARM,
             compilationMode = CompilationMode.Full(),
-            setupBlock = { benchmarkScope().setupSwipeFromScene(fromScene, toScene) },
+            setupBlock = {
+                benchmarkScope().setupSwipeFromScene(fromScene, toContent, toContentIsOverlay)
+            },
         ) {
-            swipeFromScene(fromScene, toScene, direction)
+            swipeFromScene(fromScene, toContent, direction, toContentIsOverlay, swipeOn)
         }
     }
 

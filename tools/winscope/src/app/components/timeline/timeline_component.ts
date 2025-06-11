@@ -38,10 +38,10 @@ import {DomSanitizer, SafeUrl} from '@angular/platform-browser';
 import {TimelineData} from 'app/timeline_data';
 import {assertDefined} from 'common/assert_utils';
 import {FunctionUtils} from 'common/function_utils';
-import {PersistentStore} from 'common/persistent_store';
+import {PersistentStore} from 'common/store/persistent_store';
 import {StringUtils} from 'common/string_utils';
-import {TimeRange, Timestamp, TimestampFormatType} from 'common/time';
-import {TimestampUtils} from 'common/timestamp_utils';
+import {TimeRange, Timestamp, TimestampFormatType} from 'common/time/time';
+import {TimestampUtils} from 'common/time/timestamp_utils';
 import {Analytics} from 'logging/analytics';
 import {
   ActiveTraceChanged,
@@ -189,6 +189,8 @@ import {MiniTimelineComponent} from './mini-timeline/mini_timeline_component';
                     <mat-option
                       *ngFor="let trace of sortedTraces"
                       [value]="trace"
+                      [matTooltip]="trace.getDescriptors().join(', ')"
+                      matTooltipPosition="right"
                       [style]="{
                         color: 'var(--blue-text-color)',
                         opacity: isOptionDisabled(trace) ? 0.5 : 1.0
@@ -657,9 +659,7 @@ export class TimelineComponent
       this.sortedTraces.sort((a, b) =>
         TraceTypeUtils.compareByDisplayOrder(a.type, b.type),
       );
-      this.selectedTracesFormControl.setValue(
-        (this.selectedTracesFormControl.value ?? []).concat([event.trace]),
-      );
+      this.selectedTracesFormControl.setValue(this.sortedTraces);
       this.applyNewTraceSelection(event.trace);
       await this.miniTimeline?.drawer?.draw();
     });
@@ -732,6 +732,12 @@ export class TimelineComponent
   }
 
   getTitle(trace: Trace<object>): string {
+    if (
+      trace.type === TraceType.VIEW_CAPTURE ||
+      trace.type === TraceType.SEARCH
+    ) {
+      return TRACE_INFO[trace.type].name + ' ' + trace.getDescriptors()[0];
+    }
     return TRACE_INFO[trace.type].name + (trace.isDump() ? ' Dump' : '');
   }
 
@@ -767,8 +773,10 @@ export class TimelineComponent
       return;
     }
     if (event.key === 'ArrowLeft') {
+      event.preventDefault();
       await this.moveToPreviousEntry();
     } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
       await this.moveToNextEntry();
     }
   }
@@ -876,6 +884,7 @@ export class TimelineComponent
 
   updateScrollEvent(event: WheelEvent) {
     this.expandedTimelineScrollEvent = event;
+    this.changeDetectorRef.detectChanges();
   }
 
   updateExpandedTimelineMouseXRatio(mouseXRatio: number | undefined) {
@@ -976,10 +985,17 @@ export class TimelineComponent
   }
 
   getTraceTooltip(trace: Trace<object>) {
+    let tooltip = TRACE_INFO[trace.type].name;
     if (trace.type === TraceType.SCREEN_RECORDING) {
-      return trace.getDescriptors()[0].split('.')[0];
+      tooltip += ' ' + trace.getDescriptors()[0].split('.')[0];
     }
-    return TRACE_INFO[trace.type].name;
+    if (trace.type === TraceType.VIEW_CAPTURE) {
+      tooltip += ' ' + trace.getDescriptors()[0];
+    }
+    if (trace.type === TraceType.SEARCH) {
+      tooltip += ' ' + trace.getDescriptors()[0];
+    }
+    return tooltip;
   }
 
   private updateSelectedTraces(trace: Trace<object> | undefined) {

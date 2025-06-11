@@ -34,11 +34,11 @@ import {TracePipeline} from 'app/trace_pipeline';
 import {Download} from 'common/download';
 import {FileUtils} from 'common/file_utils';
 import {globalConfig} from 'common/global_config';
-import {InMemoryStorage} from 'common/in_memory_storage';
-import {PersistentStore} from 'common/persistent_store';
-import {Store} from 'common/store';
-import {Timestamp} from 'common/time';
-import {UrlUtils} from 'common/url_utils';
+import {InMemoryStorage} from 'common/store/in_memory_storage';
+import {PersistentStore} from 'common/store/persistent_store';
+import {Store} from 'common/store/store';
+import {Timestamp} from 'common/time/time';
+import {getRootUrl} from 'common/url_utils';
 import {UserNotifier} from 'common/user_notifier';
 import {CrossToolProtocol} from 'cross_tool/cross_tool_protocol';
 import {Analytics} from 'logging/analytics';
@@ -55,9 +55,7 @@ import {
   WinscopeEventType,
 } from 'messaging/winscope_event';
 import {WinscopeEventListener} from 'messaging/winscope_event_listener';
-import {AdbConnection} from 'trace_collection/adb_connection';
 import {AdbFiles} from 'trace_collection/adb_files';
-import {ProxyConnection} from 'trace_collection/proxy_connection';
 import {iconDividerStyle} from 'viewers/components/styles/icon_divider.styles';
 import {ViewerInputMethodComponent} from 'viewers/components/viewer_input_method_component';
 import {Viewer} from 'viewers/viewer';
@@ -233,8 +231,7 @@ import {UploadTracesComponent} from './upload_traces_component';
           <div class="card-grid landing-grid">
             <collect-traces
               class="collect-traces-card homepage-card"
-              [storage]="traceConfigStorage"
-              [adbConnection]="adbConnection"
+              [storage]="traceCollectionStorage"
               (filesCollected)="onFilesCollected($event)"></collect-traces>
 
             <upload-traces
@@ -363,8 +360,8 @@ export class AppComponent implements WinscopeEventListener {
       Validators.pattern(FileUtils.DOWNLOAD_FILENAME_REGEX),
     ]),
   );
-  adbConnection: AdbConnection = new ProxyConnection();
-  traceConfigStorage: Store;
+
+  traceCollectionStorage: Store;
   downloadProgress: number | undefined;
 
   @ViewChild(UploadTracesComponent)
@@ -472,7 +469,7 @@ export class AppComponent implements WinscopeEventListener {
       );
     }
 
-    this.traceConfigStorage =
+    this.traceCollectionStorage =
       globalConfig.MODE === 'PROD'
         ? new PersistentStore()
         : new InMemoryStorage();
@@ -502,7 +499,7 @@ export class AppComponent implements WinscopeEventListener {
     const logoPath = this.isDarkModeOn
       ? 'logo_dark_mode.svg'
       : 'logo_light_mode.svg';
-    return UrlUtils.getRootUrl() + logoPath;
+    return getRootUrl() + logoPath;
   }
 
   async setDarkMode(enabled: boolean) {
@@ -575,11 +572,6 @@ export class AppComponent implements WinscopeEventListener {
     this.ngZone.run(() => {
       this.downloadProgress = undefined;
     });
-  }
-
-  downloadTraces(blob: Blob, filename: string) {
-    const url = window.URL.createObjectURL(blob);
-    Download.fromUrl(url, filename);
   }
 
   async onWinscopeEvent(event: WinscopeEvent) {
@@ -673,5 +665,10 @@ export class AppComponent implements WinscopeEventListener {
 
   private translateStatus(status: boolean) {
     return status ? 'ON' : 'OFF';
+  }
+
+  private downloadTraces(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob);
+    Download.fromUrl(url, filename);
   }
 }

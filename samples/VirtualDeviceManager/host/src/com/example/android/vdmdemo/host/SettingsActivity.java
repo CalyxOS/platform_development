@@ -22,6 +22,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.preference.PreferenceFragmentCompat;
 
+import com.example.android.vdmdemo.common.EdgeToEdgeUtils;
+
 import dagger.hilt.android.AndroidEntryPoint;
 
 import javax.inject.Inject;
@@ -39,6 +41,10 @@ public class SettingsActivity extends Hilt_SettingsActivity {
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
         setTitle(getTitle() + " " + getString(R.string.settings));
+
+        EdgeToEdgeUtils.applyTopInsets(toolbar);
+        EdgeToEdgeUtils.applyBottomInsets(requireViewById(R.id.settings_fragment_container));
+
     }
 
     @AndroidEntryPoint(PreferenceFragmentCompat.class)

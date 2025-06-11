@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import {TIME_UNIT_TO_NANO} from 'common/time_units';
+import {TimestampConverterUtils} from 'common/time/test_utils';
+import {TIME_UNIT_TO_NANO} from 'common/time/time_units';
 import {ParserBuilder} from 'test/unit/parser_builder';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {TraceBuilder} from 'test/unit/trace_builder';
 import {TraceUtils} from 'test/unit/trace_utils';
 import {UnitTestUtils} from 'test/unit/utils';
@@ -1401,6 +1401,7 @@ describe('Trace', () => {
   });
 
   it('spansMultipleDates()', () => {
+    const time0 = TimestampConverterUtils.makeZeroTimestamp();
     const emptyTrace = UnitTestUtils.makeEmptyTrace(
       TraceType.TEST_TRACE_STRING,
     );
@@ -1409,7 +1410,7 @@ describe('Trace', () => {
     const traceWithElapsedTimestamps = new TraceBuilder<string>()
       .setEntries(['entry-0', 'entry-1'])
       .setTimestamps([
-        TimestampConverterUtils.makeElapsedTimestamp(0n),
+        time0,
         TimestampConverterUtils.makeElapsedTimestamp(
           BigInt(TIME_UNIT_TO_NANO.d),
         ),
@@ -1435,5 +1436,11 @@ describe('Trace', () => {
       ])
       .build();
     expect(traceWitMultipleDates.spansMultipleDates()).toBeTrue();
+
+    const traceNoValidTimestamps = new TraceBuilder<string>()
+      .setEntries(['entry-0', 'entry-1'])
+      .setTimestamps([time0, time0])
+      .build();
+    expect(traceNoValidTimestamps.spansMultipleDates()).toBeFalse();
   });
 });

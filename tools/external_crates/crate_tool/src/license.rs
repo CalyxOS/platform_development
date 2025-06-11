@@ -72,6 +72,7 @@ static MODULE_LICENSE_FILES: LazyLock<BTreeMap<LicenseReq, &'static str>> = Lazy
     vec![
         ("Apache-2.0", "MODULE_LICENSE_APACHE2"),
         ("MIT", "MODULE_LICENSE_MIT"),
+        ("MIT-0", "MODULE_LICENSE_MIT_0"),
         ("BSD-3-Clause", "MODULE_LICENSE_BSD"),
         ("BSD-2-Clause", "MODULE_LICENSE_BSD"),
         ("ISC", "MODULE_LICENSE_ISC"),
@@ -79,6 +80,7 @@ static MODULE_LICENSE_FILES: LazyLock<BTreeMap<LicenseReq, &'static str>> = Lazy
         ("0BSD", "MODULE_LICENSE_PERMISSIVE"),
         ("Unlicense", "MODULE_LICENSE_PERMISSIVE"),
         ("Zlib", "MODULE_LICENSE_ZLIB"),
+        ("Unicode-3.0", "MODULE_LICENSE_UNICODE_3"),
         ("Unicode-DFS-2016", "MODULE_LICENSE_UNICODE"),
         ("NCSA", "MODULE_LICENSE_NCSA"),
         ("OpenSSL", "MODULE_LICENSE_OPENSSL"),
@@ -91,6 +93,7 @@ static LICENSE_TYPES: LazyLock<BTreeMap<LicenseReq, LicenseType>> = LazyLock::ne
     vec![
         ("Apache-2.0", LicenseType::NOTICE),
         ("MIT", LicenseType::NOTICE),
+        ("MIT-0", LicenseType::PERMISSIVE),
         ("BSD-3-Clause", LicenseType::NOTICE),
         ("BSD-2-Clause", LicenseType::NOTICE),
         ("ISC", LicenseType::NOTICE),
@@ -98,9 +101,11 @@ static LICENSE_TYPES: LazyLock<BTreeMap<LicenseReq, LicenseType>> = LazyLock::ne
         ("0BSD", LicenseType::PERMISSIVE),
         ("Unlicense", LicenseType::PERMISSIVE),
         ("Zlib", LicenseType::NOTICE),
+        ("Unicode-3.0", LicenseType::NOTICE),
         ("Unicode-DFS-2016", LicenseType::NOTICE),
         ("NCSA", LicenseType::NOTICE),
         ("OpenSSL", LicenseType::NOTICE),
+        ("CC0-1.0", LicenseType::UNENCUMBERED),
     ]
     .into_iter()
     .map(|l| (Licensee::parse(l.0).unwrap().into_req(), l.1))

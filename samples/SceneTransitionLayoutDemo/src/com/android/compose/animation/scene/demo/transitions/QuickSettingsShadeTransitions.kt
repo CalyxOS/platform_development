@@ -17,32 +17,33 @@
 package com.android.compose.animation.scene.demo.transitions
 
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.Orientation
 import com.android.compose.animation.scene.SceneTransitionsBuilder
 import com.android.compose.animation.scene.and
 import com.android.compose.animation.scene.demo.Clock
 import com.android.compose.animation.scene.demo.MediaPlayer
 import com.android.compose.animation.scene.demo.Overlays
-import com.android.compose.animation.scene.demo.PartialShade
 import com.android.compose.animation.scene.demo.QuickSettings
 import com.android.compose.animation.scene.demo.QuickSettingsGrid
+import com.android.compose.animation.scene.demo.QuickSettingsShade
 import com.android.compose.animation.scene.demo.Scenes
 import com.android.compose.animation.scene.demo.notification.NotificationList
 import com.android.compose.animation.scene.inContent
 import com.android.compose.animation.scene.or
 import com.android.compose.animation.scene.reveal.ContainerRevealHaptics
 import com.android.compose.animation.scene.reveal.verticalContainerReveal
+import com.android.mechanics.behavior.VerticalExpandContainerSpec
 
 val QuickSettingsToNotificationShadeFadeProgress = 0.5f
 
-fun SceneTransitionsBuilder.quickSettingsShadeTransitions(revealHaptics: ContainerRevealHaptics) {
+fun SceneTransitionsBuilder.quickSettingsShadeTransitions(
+    revealHaptics: ContainerRevealHaptics,
+    shadeMotionSpec: VerticalExpandContainerSpec,
+) {
     to(Overlays.QuickSettings) {
         spec = tween(500)
 
         sharedElement(MediaPlayer.Elements.MediaPlayer, elevateInContent = Overlays.QuickSettings)
-        sharedElement(Clock.Elements.Clock, elevateInContent = Overlays.QuickSettings)
-
-        verticalContainerReveal(PartialShade.Elements.Root, revealHaptics)
+        verticalContainerReveal(QuickSettingsShade.Elements.Root, shadeMotionSpec, revealHaptics)
     }
 
     from(Overlays.QuickSettings, to = Overlays.Notifications) {
@@ -55,11 +56,10 @@ fun SceneTransitionsBuilder.quickSettingsShadeTransitions(revealHaptics: Contain
         // Elevate the media player so that they are not clipped when shared with the split
         // lockscreen.
         sharedElement(MediaPlayer.Elements.MediaPlayer, elevateInContent = Overlays.QuickSettings)
-        sharedElement(Clock.Elements.Clock, elevateInContent = Overlays.QuickSettings)
+        sharedElement(Clock.Elements.Clock, enabled = false)
 
         fractionRange(end = QuickSettingsToNotificationShadeFadeProgress) {
             fade(MediaPlayer.Elements.MediaPlayer)
-            fade(Clock.Elements.Clock)
             fade(QuickSettingsGrid.Elements.Tiles)
             fade(QuickSettings.Elements.PagerIndicators)
             fade(
@@ -68,11 +68,8 @@ fun SceneTransitionsBuilder.quickSettingsShadeTransitions(revealHaptics: Contain
             )
         }
         fractionRange(start = QuickSettingsToNotificationShadeFadeProgress) {
+            fade(Clock.Elements.Clock)
             fade(NotificationList.Elements.Notifications and inContent(Overlays.Notifications))
         }
     }
-
-    overscrollDisabled(Overlays.QuickSettings, Orientation.Vertical)
-
-    overscrollDisabled(Overlays.QuickSettings, Orientation.Horizontal)
 }

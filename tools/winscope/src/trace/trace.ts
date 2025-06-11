@@ -16,8 +16,8 @@
 
 import {ArrayUtils} from 'common/array_utils';
 import {assertDefined} from 'common/assert_utils';
-import {INVALID_TIME_NS, Timestamp} from 'common/time';
-import {TimestampUtils} from 'common/timestamp_utils';
+import {INVALID_TIME_NS, Timestamp} from 'common/time/time';
+import {TimestampUtils} from 'common/time/timestamp_utils';
 import {TracesParserInput} from 'parsers/input/perfetto/traces_parser_input';
 import {AbstractParser as AbstractPerfettoParser} from 'parsers/perfetto/abstract_parser';
 import {
@@ -179,7 +179,7 @@ export class Trace<T> {
     return this.parser;
   }
 
-  canSearch(): boolean {
+  isPerfetto(): boolean {
     return [AbstractPerfettoParser, TracesParserInput].some(
       (ParserType) => this.parser instanceof ParserType,
     );
@@ -249,7 +249,7 @@ export class Trace<T> {
 
   getFrame(frame: AbsoluteFrameIndex): Trace<T> {
     this.checkTraceCanBeAccessedInFrameDomain();
-    const entries = this.frameMap!.getEntriesRange({
+    const entries = assertDefined(this.frameMap).getEntriesRange({
       start: frame,
       end: frame + 1,
     });
@@ -508,9 +508,10 @@ export class Trace<T> {
         }
         i++;
       }
-      const firstDate = TimestampUtils.extractDateFromHumanTimestamp(
-        assertDefined(firstTs),
-      );
+      if (!firstTs) {
+        return false;
+      }
+      const firstDate = TimestampUtils.extractDateFromHumanTimestamp(firstTs);
       if (firstDate) {
         const lastDate = TimestampUtils.extractDateFromHumanTimestamp(
           this.getEntry(this.lengthEntries - 1)
@@ -524,7 +525,7 @@ export class Trace<T> {
   }
 
   private getEntryInternal<
-    EntryType extends TraceEntryLazy<T> | TraceEntryEager<T, any>,
+    EntryType extends TraceEntryLazy<T> | TraceEntryEager<T, unknown>,
   >(
     index: RelativeEntryIndex,
     makeEntry: (
@@ -618,8 +619,8 @@ export class Trace<T> {
       return undefined;
     }
     return {
-      start: this.clampEntryToSliceBounds(entries.start) as AbsoluteEntryIndex,
-      end: this.clampEntryToSliceBounds(entries.end) as AbsoluteEntryIndex,
+      start: assertDefined(this.clampEntryToSliceBounds(entries.start)),
+      end: assertDefined(this.clampEntryToSliceBounds(entries.end)),
     };
   }
 
@@ -630,8 +631,8 @@ export class Trace<T> {
       return undefined;
     }
     return {
-      start: this.clampFrameToSliceBounds(frames.start) as AbsoluteFrameIndex,
-      end: this.clampFrameToSliceBounds(frames.end) as AbsoluteFrameIndex,
+      start: assertDefined(this.clampFrameToSliceBounds(frames.start)),
+      end: assertDefined(this.clampFrameToSliceBounds(frames.end)),
     };
   }
 

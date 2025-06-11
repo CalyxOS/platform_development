@@ -16,20 +16,20 @@
 
 import {assertDefined} from 'common/assert_utils';
 import {FunctionUtils} from 'common/function_utils';
-import {parseMap, stringifyMap} from 'common/persistent_store_proxy';
-import {Store} from 'common/store';
+import {InMemoryStorage} from 'common/store/in_memory_storage';
+import {parseMap, stringifyMap} from 'common/store/persistent_store_proxy';
+import {Store} from 'common/store/store';
+import {Analytics} from 'logging/analytics';
 import {
   TracePositionUpdate,
   WinscopeEvent,
   WinscopeEventType,
 } from 'messaging/winscope_event';
-import {
-  EmitEvent,
-  WinscopeEventEmitter,
-} from 'messaging/winscope_event_emitter';
+import {EmitEvent} from 'messaging/winscope_event_emitter';
 import {Trace, TraceEntry} from 'trace/trace';
 import {Traces} from 'trace/traces';
 import {TraceEntryFinder} from 'trace/trace_entry_finder';
+import {TRACE_INFO} from 'trace/trace_info';
 import {TraceType} from 'trace/trace_type';
 import {HierarchyTreeNode} from 'trace/tree_node/hierarchy_tree_node';
 import {PropertyTreeNode} from 'trace/tree_node/property_tree_node';
@@ -37,8 +37,8 @@ import {PropertiesPresenter} from 'viewers/common/properties_presenter';
 import {RectsPresenter} from 'viewers/common/rects_presenter';
 import {TextFilter} from 'viewers/common/text_filter';
 import {UiHierarchyTreeNode} from 'viewers/common/ui_hierarchy_tree_node';
-import {UserOptions} from 'viewers/common/user_options';
-import {HierarchyPresenter} from './hierarchy_presenter';
+import {UserOption, UserOptions} from 'viewers/common/user_options';
+import {HierarchyPresenter, SelectedTree} from './hierarchy_presenter';
 import {PresetHierarchy, TextFilterValues} from './preset_hierarchy';
 import {RectShowState} from './rect_show_state';
 import {UiDataHierarchy} from './ui_data_hierarchy';
@@ -48,8 +48,7 @@ export type NotifyHierarchyViewCallbackType<UiData> = (uiData: UiData) => void;
 
 export abstract class AbstractHierarchyViewerPresenter<
   UiData extends UiDataHierarchy,
-> implements WinscopeEventEmitter
-{
+> {
   protected emitWinscopeEvent: EmitEvent = FunctionUtils.DO_NOTHING_ASYNC;
   protected overridePropertiesTree: PropertyTreeNode | undefined;
   protected overridePropertiesTreeName: string | undefined;
@@ -82,6 +81,16 @@ export abstract class AbstractHierarchyViewerPresenter<
       ViewerEvents.HighlightedIdChange,
       async (event) =>
         await this.onHighlightedIdChange((event as CustomEvent).detail.id),
+    );
+    htmlElement.addEventListener(
+      ViewerEvents.ArrowDownPress,
+      async (event) =>
+        await this.onArrowPress((event as CustomEvent).detail, false),
+    );
+    htmlElement.addEventListener(
+      ViewerEvents.ArrowUpPress,
+      async (event) =>
+        await this.onArrowPress((event as CustomEvent).detail, true),
     );
     htmlElement.addEventListener(
       ViewerEvents.HighlightedPropertyChange,
@@ -138,12 +147,23 @@ export abstract class AbstractHierarchyViewerPresenter<
         );
       },
     );
+    this.addViewerSpecificListeners(htmlElement);
   }
 
   onPinnedItemChange(pinnedItem: UiHierarchyTreeNode) {
     this.hierarchyPresenter.applyPinnedItemChange(pinnedItem);
     this.uiData.pinnedItems = this.hierarchyPresenter.getPinnedItems();
     this.copyUiDataAndNotifyView();
+  }
+
+  async onArrowPress(storage: InMemoryStorage, getPrevious: boolean) {
+    const newNode = this.hierarchyPresenter.getAdjacentVisibleNode(
+      storage,
+      getPrevious,
+    );
+    if (newNode) {
+      await this.onHighlightedNodeChange(newNode);
+    }
   }
 
   onHighlightedPropertyChange(id: string) {
@@ -238,6 +258,15 @@ export abstract class AbstractHierarchyViewerPresenter<
         this.refreshUIData();
       },
     );
+    await this.onViewerSpecificWinscopeEvent(event);
+  }
+
+  protected async onViewerSpecificWinscopeEvent(event: WinscopeEvent) {
+    // do nothing
+  }
+
+  protected addViewerSpecificListeners(htmlElement: HTMLElement) {
+    // do nothing;
   }
 
   protected saveConfigAsPreset(storeKey: string) {
@@ -294,6 +323,8 @@ export abstract class AbstractHierarchyViewerPresenter<
   }
 
   protected async applyTracePositionUpdate(event: TracePositionUpdate) {
+    const hierarchyStartTime = Date.now();
+
     let entries: Array<TraceEntry<HierarchyTreeNode>> = [];
     if (this.multiTraceType !== undefined) {
       entries = this.traces
@@ -320,6 +351,8 @@ export abstract class AbstractHierarchyViewerPresenter<
         entries,
         this.highlightedItem,
       );
+      const showDiff = this.hierarchyPresenter.getUserOptions()['showDiff'];
+      this.logFetchComponentData(hierarchyStartTime, 'hierarchy', showDiff);
     } catch (e) {
       this.hierarchyPresenter.clear();
       this.rectsPresenter?.clear();
@@ -337,7 +370,10 @@ export abstract class AbstractHierarchyViewerPresenter<
     const currentHierarchyTrees =
       this.hierarchyPresenter.getAllCurrentHierarchyTrees();
     if (currentHierarchyTrees) {
+      const rectStartTime = Date.now();
       this.rectsPresenter?.applyHierarchyTreesChange(currentHierarchyTrees);
+      this.logFetchComponentData(rectStartTime, 'rects');
+
       await this.updatePropertiesTree();
     }
   }
@@ -355,6 +391,9 @@ export abstract class AbstractHierarchyViewerPresenter<
   }
 
   protected async updatePropertiesTree() {
+    const showDiff = this.propertiesPresenter.getUserOptions()['showDiff'];
+    const propertiesStartTime = Date.now();
+
     if (this.overridePropertiesTree) {
       this.propertiesPresenter.setPropertiesTree(this.overridePropertiesTree);
       await this.propertiesPresenter.formatPropertiesTree(
@@ -362,14 +401,15 @@ export abstract class AbstractHierarchyViewerPresenter<
         this.overridePropertiesTreeName,
         false,
       );
+      this.logFetchComponentData(propertiesStartTime, 'properties', showDiff);
       return;
     }
     const selected = this.hierarchyPresenter.getSelectedTree();
     if (selected) {
-      const [trace, selectedTree] = selected;
+      const {trace, tree: selectedTree} = selected;
       const propertiesTree = await selectedTree.getAllProperties();
       if (
-        this.propertiesPresenter.getUserOptions()['showDiff']?.enabled &&
+        showDiff?.enabled &&
         !this.hierarchyPresenter.getPreviousHierarchyTreeForTrace(trace)
       ) {
         await this.hierarchyPresenter.updatePreviousHierarchyTrees();
@@ -381,7 +421,9 @@ export abstract class AbstractHierarchyViewerPresenter<
         previousTree,
         this.getOverrideDisplayName(selected),
         this.keepCalculated(selectedTree),
+        trace.type,
       );
+      this.logFetchComponentData(propertiesStartTime, 'properties', showDiff);
     } else {
       this.propertiesPresenter.clear();
     }
@@ -442,11 +484,26 @@ export abstract class AbstractHierarchyViewerPresenter<
     this.notifyViewCallback(copy);
   }
 
+  private logFetchComponentData(
+    startTimeMs: number,
+    component: 'hierarchy' | 'properties' | 'rects',
+    showDiffs?: UserOption,
+  ) {
+    const traceName =
+      TRACE_INFO[this.trace?.type ?? assertDefined(this.multiTraceType)].name;
+    Analytics.Navigation.logFetchComponentDataTime(
+      component,
+      traceName,
+      showDiffs !== undefined && showDiffs.enabled && !showDiffs.isUnavailable,
+      Date.now() - startTimeMs,
+    );
+  }
+
   abstract onHighlightedNodeChange(node: UiHierarchyTreeNode): Promise<void>;
   abstract onHighlightedIdChange(id: string): Promise<void>;
   protected abstract keepCalculated(tree: HierarchyTreeNode): boolean;
   protected abstract getOverrideDisplayName(
-    selected: [Trace<HierarchyTreeNode>, HierarchyTreeNode],
+    selected: SelectedTree,
   ): string | undefined;
   protected abstract refreshUIData(): void;
   protected initializeIfNeeded?(event: TracePositionUpdate): Promise<void>;

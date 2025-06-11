@@ -25,13 +25,13 @@ import {
 import {MatSelect, MatSelectChange} from '@angular/material/select';
 import {assertDefined} from 'common/assert_utils';
 import {globalConfig} from 'common/global_config';
-import {PersistentStoreProxy} from 'common/persistent_store_proxy';
-import {Store} from 'common/store';
+import {Store} from 'common/store/store';
 import {
-  EnableConfiguration,
+  CheckboxConfiguration,
   SelectionConfiguration,
   TraceConfigurationMap,
-} from 'trace_collection/trace_configuration';
+  updateConfigsFromStore,
+} from 'trace_collection/ui/ui_trace_configuration';
 import {userOptionStyle} from 'viewers/components/styles/user_option.styles';
 
 @Component({
@@ -45,7 +45,7 @@ import {userOptionStyle} from 'viewers/components/styles/user_option.styles';
         color="primary"
         class="trace-checkbox"
         [disabled]="!this.traceConfig[traceKey].available"
-        [(ngModel)]="this.traceConfig[traceKey].enabled"
+        [(ngModel)]="this.traceConfig[traceKey].config.enabled"
         (ngModelChange)="onTraceConfigChange()"
         >{{ this.traceConfig[traceKey].name }}</mat-checkbox>
     </div>
@@ -56,21 +56,21 @@ import {userOptionStyle} from 'viewers/components/styles/user_option.styles';
       <h3 class="config-heading mat-subheading-2">{{ this.traceConfig[traceKey].name }} configuration</h3>
 
       <div
-        *ngIf="this.traceConfig[traceKey].config && this.traceConfig[traceKey].config.enableConfigs.length > 0"
+        *ngIf="this.traceConfig[traceKey].config.checkboxConfigs.length > 0"
         class="enable-config-opt">
         <mat-checkbox
-          *ngFor="let enableConfig of getSortedConfigs(this.traceConfig[traceKey].config.enableConfigs)"
+          *ngFor="let checkboxConfig of getSortedConfigs(this.traceConfig[traceKey].config.checkboxConfigs)"
           color="primary"
           class="enable-config"
-          [disabled]="!this.traceConfig[traceKey].enabled"
-          [(ngModel)]="enableConfig.enabled"
+          [disabled]="!this.traceConfig[traceKey].config.enabled"
+          [(ngModel)]="checkboxConfig.enabled"
           (ngModelChange)="onTraceConfigChange()"
-          >{{ enableConfig.name }}</mat-checkbox
+          >{{ checkboxConfig.name }}</mat-checkbox
         >
       </div>
 
       <div
-        *ngIf="this.traceConfig[traceKey].config && this.traceConfig[traceKey].config.selectionConfigs.length > 0"
+        *ngIf="this.traceConfig[traceKey].config.selectionConfigs.length > 0"
         class="selection-config-opt">
         <ng-container *ngFor="let selectionConfig of getSortedConfigs(this.traceConfig[traceKey].config.selectionConfigs)">
           <div class="config-selection-with-desc" [class.wide-field]="selectionConfig.wideField">
@@ -87,7 +87,7 @@ import {userOptionStyle} from 'viewers/components/styles/user_option.styles';
                 class="selected-value"
                 [attr.label]="traceKey + selectionConfig.name"
                 [value]="selectionConfig.value"
-                [disabled]="!this.traceConfig[traceKey].enabled || selectionConfig.options.length === 0"
+                [disabled]="!this.traceConfig[traceKey].config.enabled || selectionConfig.options.length === 0"
                 (selectionChange)="onSelectChange($event, selectionConfig)">
                 <span class="mat-option" *ngIf="matSelect.multiple || selectionConfig.optional">
                   <button
@@ -155,11 +155,10 @@ import {userOptionStyle} from 'viewers/components/styles/user_option.styles';
 })
 export class TraceConfigComponent {
   changeDetectionWorker: number | undefined;
-  traceConfig: TraceConfigurationMap | undefined;
 
   @Input() title: string | undefined;
   @Input() traceConfigStoreKey: string | undefined;
-  @Input() initialTraceConfig: TraceConfigurationMap | undefined;
+  @Input() traceConfig: TraceConfigurationMap | undefined;
   @Input() storage: Store | undefined;
   @Output() readonly traceConfigChange =
     new EventEmitter<TraceConfigurationMap>();
@@ -172,13 +171,13 @@ export class TraceConfigComponent {
   ) {}
 
   ngOnInit() {
-    this.traceConfig = PersistentStoreProxy.new<TraceConfigurationMap>(
-      assertDefined(this.traceConfigStoreKey),
+    this.traceConfig = updateConfigsFromStore(
       assertDefined(
-        JSON.parse(JSON.stringify(assertDefined(this.initialTraceConfig))),
+        JSON.parse(JSON.stringify(assertDefined(this.traceConfig))),
         () => 'component initialized without config',
       ),
       assertDefined(this.storage),
+      assertDefined(this.traceConfigStoreKey),
     );
     if (globalConfig.MODE !== 'KARMA_TEST') {
       this.changeDetectionWorker = window.setInterval(
@@ -208,7 +207,8 @@ export class TraceConfigComponent {
   getSortedConfigKeys(): string[] {
     const advancedConfigs: string[] = [];
     Object.keys(assertDefined(this.traceConfig)).forEach((traceKey: string) => {
-      if (assertDefined(this.traceConfig)[traceKey].config) {
+      const c = assertDefined(this.traceConfig)[traceKey].config;
+      if (c.checkboxConfigs.length > 0 || c.selectionConfigs.length > 0) {
         advancedConfigs.push(traceKey);
       }
     });
@@ -216,8 +216,8 @@ export class TraceConfigComponent {
   }
 
   getSortedConfigs(
-    configs: EnableConfiguration[] | SelectionConfiguration[],
-  ): EnableConfiguration[] | SelectionConfiguration[] {
+    configs: CheckboxConfiguration[] | SelectionConfiguration[],
+  ): CheckboxConfiguration[] | SelectionConfiguration[] {
     return configs.sort((a, b) => {
       return a.name < b.name ? -1 : 1;
     });

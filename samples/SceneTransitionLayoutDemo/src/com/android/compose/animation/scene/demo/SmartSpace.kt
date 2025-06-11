@@ -33,8 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
-import com.android.compose.animation.scene.SceneScope
 import com.android.compose.animation.scene.ValueKey
 import com.android.compose.animation.scene.animateElementColorAsState
 
@@ -49,8 +49,8 @@ object SmartSpace {
 }
 
 @Composable
-fun SceneScope.SmartSpace(textColor: Color, modifier: Modifier = Modifier) {
-    Element(SmartSpace.Elements.SmartSpace, modifier) {
+fun ContentScope.SmartSpace(textColor: Color, modifier: Modifier = Modifier) {
+    ElementWithValues(SmartSpace.Elements.SmartSpace, modifier) {
         val color = animateElementColorAsState(textColor, SmartSpace.Values.TextColor)
 
         content {

@@ -19,12 +19,13 @@ package com.example.android.vdmdemo.host;
 import static android.Manifest.permission.ADD_ALWAYS_UNLOCKED_DISPLAY;
 import static android.Manifest.permission.ADD_TRUSTED_DISPLAY;
 import static android.os.Build.VERSION.SDK_INT;
+import static android.os.Build.VERSION_CODES.BAKLAVA;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM;
 
 import android.companion.AssociationRequest;
-import android.companion.virtual.flags.Flags;
+import android.companion.virtualdevice.flags.Flags;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -32,7 +33,6 @@ import android.util.ArrayMap;
 import android.util.Log;
 
 import androidx.annotation.StringRes;
-import androidx.core.os.BuildCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceManager;
 
@@ -70,17 +70,13 @@ final class PreferenceController {
             new BoolRule(R.string.pref_hide_from_recents, UPSIDE_DOWN_CAKE)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY),
 
-            new BoolRule(R.string.pref_enable_cross_device_clipboard,
-                    VANILLA_ICE_CREAM, Flags::crossDeviceClipboard)
+            new BoolRule(R.string.pref_enable_cross_device_clipboard, VANILLA_ICE_CREAM)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY),
 
-            // TODO(b/379277747): Change to BAKLAVA
-            new BoolRule(R.string.pref_enable_custom_activity_policy, VANILLA_ICE_CREAM,
-                    Flags::dynamicPolicy,
-                    android.companion.virtualdevice.flags.Flags::activityControlApi),
+            new BoolRule(R.string.pref_enable_custom_activity_policy, BAKLAVA,
+                    Flags::activityControlApi),
 
-            new BoolRule(R.string.pref_enable_client_camera, VANILLA_ICE_CREAM,
-                    Flags::virtualCamera),
+            new BoolRule(R.string.pref_enable_client_camera, VANILLA_ICE_CREAM),
 
             new BoolRule(R.string.pref_enable_client_sensors, UPSIDE_DOWN_CAKE),
 
@@ -97,34 +93,32 @@ final class PreferenceController {
             new BoolRule(R.string.pref_show_pointer_icon, TIRAMISU)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY),
 
-            new BoolRule(R.string.pref_enable_custom_home, VANILLA_ICE_CREAM, Flags::vdmCustomHome)
+            new BoolRule(R.string.pref_enable_custom_home, VANILLA_ICE_CREAM)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY),
 
-            // TODO(b/379277747): Change to BAKLAVA
-            new BoolRule(R.string.pref_enable_custom_status_bar, VANILLA_ICE_CREAM,
-                    android.companion.virtualdevice.flags.Flags::statusBarAndInsets)
+            new BoolRule(R.string.pref_enable_custom_status_bar, BAKLAVA, Flags::statusBarAndInsets)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY),
 
-            // TODO(b/379277747): Change to BAKLAVA
-            new StringRule(R.string.pref_display_timeout, VANILLA_ICE_CREAM,
-                    android.companion.virtualdevice.flags.Flags::deviceAwareDisplayPower,
-                    android.companion.virtualdevice.flags.Flags::displayPowerManagerApis)
+            new StringRule(R.string.pref_display_timeout, BAKLAVA,
+                    Flags::deviceAwareDisplayPower, Flags::displayPowerManagerApis)
                     .withDefaultValue(String.valueOf(0)),
 
-            // TODO(b/379277747): Change to BAKLAVA
-            new StringRule(R.string.pref_enable_client_brightness, VANILLA_ICE_CREAM,
-                    android.companion.virtualdevice.flags.Flags::deviceAwareDisplayPower,
-                    android.companion.virtualdevice.flags.Flags::displayPowerManagerApis),
+            new StringRule(R.string.pref_enable_client_brightness, BAKLAVA,
+                    Flags::deviceAwareDisplayPower, Flags::displayPowerManagerApis),
 
-            new StringRule(R.string.pref_display_ime_policy, VANILLA_ICE_CREAM, Flags::vdmCustomIme)
+            new StringRule(R.string.pref_display_ime_policy, VANILLA_ICE_CREAM)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY)
                     .withDefaultValue(String.valueOf(0)),
 
-            new BoolRule(R.string.pref_enable_client_native_ime,
-                    VANILLA_ICE_CREAM, Flags::vdmCustomIme)
+            new BoolRule(R.string.pref_enable_client_native_ime, VANILLA_ICE_CREAM)
                     .withRequiredPermissions(ADD_TRUSTED_DISPLAY),
 
+            new BoolRule(R.string.pref_standalone_host_demo, TIRAMISU),
+
             new BoolRule(R.string.pref_record_encoder_output, TIRAMISU),
+
+            new StringRule(R.string.pref_network_channel, TIRAMISU)
+                    .withDefaultValue(String.valueOf(0)),
 
             new BoolRule(R.string.pref_enable_update_audio_policy_mixes, VANILLA_ICE_CREAM)
                     .withDefaultValue(true),
@@ -139,17 +133,13 @@ final class PreferenceController {
                     VANILLA_ICE_CREAM),
 
             new InternalBoolRule(R.string.internal_pref_virtual_stylus_supported,
-                    VANILLA_ICE_CREAM, Flags::virtualStylus),
+                    VANILLA_ICE_CREAM),
 
-            // TODO(b/379277747): Change to BAKLAVA
-            new InternalBoolRule(R.string.internal_pref_virtual_rotary_supported,
-                    VANILLA_ICE_CREAM,
-                    android.companion.virtualdevice.flags.Flags::virtualRotary),
+            new InternalBoolRule(R.string.internal_pref_virtual_rotary_supported, BAKLAVA,
+                    Flags::virtualRotary),
 
-            // TODO(b/379277747): Change to BAKLAVA
-            new InternalBoolRule(R.string.internal_pref_display_rotation_supported,
-                    VANILLA_ICE_CREAM,
-                    android.companion.virtualdevice.flags.Flags::virtualDisplayRotationApi)
+            new InternalBoolRule(R.string.internal_pref_display_rotation_supported, BAKLAVA,
+                    Flags::virtualDisplayRotationApi)
     );
     // LINT.ThenChange(/samples/VirtualDeviceManager/README.md:host_options)
 
@@ -284,7 +274,7 @@ final class PreferenceController {
         }
 
         private boolean isSdkVersionSatisfied() {
-            return mMinSdk <= SDK_INT || (mMinSdk == VANILLA_ICE_CREAM && BuildCompat.isAtLeastV());
+            return mMinSdk <= SDK_INT || (mMinSdk == BAKLAVA && VdmCompat.isAtLeastB());
         }
 
         PrefRule<T> withDefaultValue(T defaultValue) {

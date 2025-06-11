@@ -16,13 +16,13 @@
 
 import {assertDefined} from 'common/assert_utils';
 import {FileUtils} from 'common/file_utils';
-import {TimeRange} from 'common/time';
+import {TimestampConverterUtils} from 'common/time/test_utils';
+import {TimeRange} from 'common/time/time';
 import {UserWarning} from 'messaging/user_warning';
 import {TraceHasOldData, TraceOverridden} from 'messaging/user_warnings';
 import {FileAndParser} from 'parsers/file_and_parser';
 import {FileAndParsers} from 'parsers/file_and_parsers';
 import {ParserBuilder} from 'test/unit/parser_builder';
-import {TimestampConverterUtils} from 'test/unit/timestamp_converter_utils';
 import {UserNotifierChecker} from 'test/unit/user_notifier_checker';
 import {Parser} from 'trace/parser';
 import {TraceFile} from 'trace/trace_file';
@@ -375,11 +375,6 @@ describe('LoadedParsers', () => {
       .setTimestamps(timestamps)
       .setDescriptors(['screenshot.png'])
       .build();
-    const parserScreenshot1 = new ParserBuilder<object>()
-      .setType(TraceType.SCREENSHOT)
-      .setTimestamps(timestamps)
-      .setDescriptors(['screenshot.png'])
-      .build();
     const overrideError = new TraceOverridden(
       'screenshot.png',
       TraceType.SCREEN_RECORDING,
@@ -449,16 +444,20 @@ describe('LoadedParsers', () => {
     ]);
   });
 
-  it('can be cleared', () => {
+  it('can be cleared', async () => {
     loadedParsers.clear();
-    loadParsers([parserSf0], [parserWm0]);
-    expectLoadResult([parserSf0, parserWm0], []);
-
+    loadParsers([parserSf0, parserWm0], []);
+    loadedParsers.remove(parserWm0, true);
     loadedParsers.clear();
     expectLoadResult([], []);
+    await expectDownloadResult([]);
 
-    loadParsers([parserSf0], [parserWm0]);
+    loadParsers([parserSf0, parserWm0], []);
     expectLoadResult([parserSf0, parserWm0], []);
+    await expectDownloadResult([
+      'sf/filename.winscope',
+      'wm/filename.winscope',
+    ]);
   });
 
   it('can make zip archive of traces with appropriate directories and extensions', async () => {

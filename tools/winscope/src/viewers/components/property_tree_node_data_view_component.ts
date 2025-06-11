@@ -15,12 +15,15 @@
  */
 import {Component, ElementRef, Inject, Input} from '@angular/core';
 import {assertDefined} from 'common/assert_utils';
-import {Timestamp} from 'common/time';
+import {Timestamp} from 'common/time/time';
 import {DiffType} from 'viewers/common/diff_type';
 import {UiPropertyTreeNode} from 'viewers/common/ui_property_tree_node';
 import {TimestampClickDetail, ViewerEvents} from 'viewers/common/viewer_events';
 import {propertyTreeNodeDataViewStyles} from 'viewers/components/styles/tree_node_data_view.styles';
-import {timeButtonStyle} from './styles/clickable_property.styles';
+import {
+  inlineButtonStyle,
+  timeButtonStyle,
+} from './styles/clickable_property.styles';
 
 @Component({
   selector: 'property-tree-node-data-view',
@@ -36,8 +39,16 @@ import {timeButtonStyle} from './styles/clickable_property.styles';
           (click)="onTimestampClicked(node)">
           {{ node.formattedValue() }}
         </button>
-        <a *ngIf="!isTimestamp()" [class]="[valueClass()]" class="mat-body-2 value new">{{ node.formattedValue() }}</a>
-        <s *ngIf="isModified()" class="old-value">{{ node.getOldValue() }}</s>
+        <div *ngIf="!isTimestamp() && node?.canPropagate()" class="inline">
+          <button
+            mat-button
+            color="primary"
+            (click)="onPropagateButtonClicked(node)">
+            {{ node.formattedValue() }}
+          </button>
+        </div>
+        <a *ngIf="!isTimestamp() && !node?.canPropagate()" [class]="[valueClass()]" class="mat-body-2 value new">{{ node.formattedValue() }}</a>
+        <s *ngIf="isModified()" class="mat-body-2 old-value">{{ node.getOldValue() }}</s>
       </div>
     </div>
   `,
@@ -49,6 +60,7 @@ import {timeButtonStyle} from './styles/clickable_property.styles';
     `,
     propertyTreeNodeDataViewStyles,
     timeButtonStyle,
+    inlineButtonStyle,
   ],
 })
 export class PropertyTreeNodeDataViewComponent {
@@ -74,6 +86,14 @@ export class PropertyTreeNodeDataViewComponent {
       detail: new TimestampClickDetail(undefined, timestamp),
     });
     this.elementRef.nativeElement.dispatchEvent(customEvent);
+  }
+
+  onPropagateButtonClicked(node: UiPropertyTreeNode) {
+    const event = new CustomEvent(ViewerEvents.PropagatePropertyClick, {
+      bubbles: true,
+      detail: node,
+    });
+    this.elementRef.nativeElement.dispatchEvent(event);
   }
 
   valueClass() {

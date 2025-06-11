@@ -15,8 +15,8 @@
  */
 
 import {assertDefined} from 'common/assert_utils';
-import {InMemoryStorage} from 'common/in_memory_storage';
-import {Store} from 'common/store';
+import {InMemoryStorage} from 'common/store/in_memory_storage';
+import {Store} from 'common/store/store';
 import {TracePositionUpdate} from 'messaging/winscope_event';
 import {TraceBuilder} from 'test/unit/trace_builder';
 import {TreeNodeUtils} from 'test/unit/tree_node_utils';
@@ -37,6 +37,7 @@ import {VISIBLE_CHIP} from './chip';
 import {UiDataHierarchy} from './ui_data_hierarchy';
 import {UiHierarchyTreeNode} from './ui_hierarchy_tree_node';
 import {UiPropertyTreeNode} from './ui_property_tree_node';
+import {ViewerEvents} from './viewer_events';
 
 export abstract class AbstractPresenterInputMethodTest extends AbstractHierarchyViewerPresenterTest<ImeUiData> {
   private traces: Traces | undefined;
@@ -199,6 +200,27 @@ the default for its data type.`,
       afterEach(() => {
         userNotifierChecker.expectNone();
         userNotifierChecker.reset();
+      });
+
+      it('adds event listeners', async () => {
+        setUpPresenter([imeTraceType]);
+        const element = document.createElement('div');
+        presenter.addEventListeners(element);
+
+        const spy: jasmine.Spy = spyOn(
+          presenter,
+          'onAdditionalPropertySelected',
+        );
+        const selectedItem = {
+          name: '',
+          treeNode: TreeNodeUtils.makePropertyNode('', '', null),
+        };
+        element.dispatchEvent(
+          new CustomEvent(ViewerEvents.AdditionalPropertySelected, {
+            detail: {selectedItem},
+          }),
+        );
+        expect(spy).toHaveBeenCalledWith(selectedItem);
       });
 
       it('is robust to traces without SF', async () => {
