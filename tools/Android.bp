@@ -15,3 +15,14 @@ license {
 }
 
 subdirs = ["*"]
+
+genrule {
+    name: "otatools_package_make_key",
+    tools: ["soong_zip"],
+    srcs: [
+        "make_key",
+    ],
+    cmd: "find development/tools -type f | sort > $(genDir)/files.txt && " +
+        "$(location soong_zip) -o $(out) -l $(genDir)/files.txt",
+    out: ["otatools_package_make_key.zip"],
+}
