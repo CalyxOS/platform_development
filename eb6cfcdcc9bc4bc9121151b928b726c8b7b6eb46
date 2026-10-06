@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "9552e069_30af7d33",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-10-06T17:33:29Z",
+      "side": 1,
+      "message": "Just a sample app so kinda useless, still picking it to be complete for October ASB.",
+      "revId": "eb6cfcdcc9bc4bc9121151b928b726c8b7b6eb46",
+      "serverId": "35266860-6252-469c-a67d-185064479fc0"
+    }
+  ]
+}
